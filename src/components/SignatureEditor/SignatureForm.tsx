@@ -1,5 +1,5 @@
 import { SignatureData } from '@/types/signature';
-import { User, Briefcase, Building2, Mail, Phone, Globe, Upload, ChevronDown, ChevronUp } from 'lucide-react';
+import { User, Briefcase, Building2, Mail, Phone, Globe, Upload, ChevronDown, ChevronUp, X } from 'lucide-react';
 import { useRef, useState } from 'react';
 import { SOCIAL_NETWORKS, SocialNetworkKey } from '@/lib/socialNetworks';
 
@@ -58,56 +58,86 @@ const SignatureForm = ({ data, onChange }: SignatureFormProps) => {
         <h3 className="text-sm font-semibold text-foreground">תמונות</h3>
         <div className="grid grid-cols-2 gap-4">
           {/* Profile Image */}
-          <div 
-            onClick={() => profileInputRef.current?.click()}
-            className="group cursor-pointer border-2 border-dashed border-border rounded-xl p-4 text-center hover:border-primary hover:bg-accent/50 transition-all duration-200"
-          >
-            <input
-              ref={profileInputRef}
-              type="file"
-              accept="image/*"
-              onChange={(e) => handleImageUpload('profileImage', e)}
-              className="hidden"
-            />
-            {data.profileImage ? (
-              <div className="relative">
-                <img src={data.profileImage} alt="Profile" className="w-16 h-16 rounded-full mx-auto object-cover" />
-                <span className="text-xs text-muted-foreground mt-2 block">לחץ להחלפה</span>
-              </div>
-            ) : (
-              <>
-                <div className="w-12 h-12 rounded-full bg-accent mx-auto flex items-center justify-center group-hover:bg-primary/10 transition-colors">
-                  <Upload className="w-5 h-5 text-muted-foreground group-hover:text-primary" />
+          <div className="relative">
+            <div 
+              onClick={() => profileInputRef.current?.click()}
+              className="group cursor-pointer border-2 border-dashed border-border rounded-xl p-4 text-center hover:border-primary hover:bg-accent/50 transition-all duration-200"
+            >
+              <input
+                ref={profileInputRef}
+                type="file"
+                accept="image/*"
+                onChange={(e) => handleImageUpload('profileImage', e)}
+                className="hidden"
+              />
+              {data.profileImage ? (
+                <div className="relative">
+                  <img src={data.profileImage} alt="Profile" className="w-16 h-16 rounded-full mx-auto object-cover" />
+                  <span className="text-xs text-muted-foreground mt-2 block">לחץ להחלפה</span>
                 </div>
-                <span className="text-xs text-muted-foreground mt-2 block">תמונת פרופיל</span>
-              </>
+              ) : (
+                <>
+                  <div className="w-12 h-12 rounded-full bg-accent mx-auto flex items-center justify-center group-hover:bg-primary/10 transition-colors">
+                    <Upload className="w-5 h-5 text-muted-foreground group-hover:text-primary" />
+                  </div>
+                  <span className="text-xs text-muted-foreground mt-2 block">תמונת פרופיל</span>
+                </>
+              )}
+            </div>
+            {data.profileImage && (
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleChange('profileImage', '');
+                }}
+                className="absolute -top-2 -left-2 w-6 h-6 bg-destructive text-destructive-foreground rounded-full flex items-center justify-center hover:bg-destructive/90 transition-colors shadow-sm"
+                title="הסר תמונה"
+              >
+                <X className="w-3.5 h-3.5" />
+              </button>
             )}
           </div>
 
           {/* Company Logo */}
-          <div 
-            onClick={() => logoInputRef.current?.click()}
-            className="group cursor-pointer border-2 border-dashed border-border rounded-xl p-4 text-center hover:border-primary hover:bg-accent/50 transition-all duration-200"
-          >
-            <input
-              ref={logoInputRef}
-              type="file"
-              accept="image/*"
-              onChange={(e) => handleImageUpload('companyLogo', e)}
-              className="hidden"
-            />
-            {data.companyLogo ? (
-              <div className="relative">
-                <img src={data.companyLogo} alt="Logo" className="w-16 h-16 mx-auto object-contain" />
-                <span className="text-xs text-muted-foreground mt-2 block">לחץ להחלפה</span>
-              </div>
-            ) : (
-              <>
-                <div className="w-12 h-12 rounded-lg bg-accent mx-auto flex items-center justify-center group-hover:bg-primary/10 transition-colors">
-                  <Building2 className="w-5 h-5 text-muted-foreground group-hover:text-primary" />
+          <div className="relative">
+            <div 
+              onClick={() => logoInputRef.current?.click()}
+              className="group cursor-pointer border-2 border-dashed border-border rounded-xl p-4 text-center hover:border-primary hover:bg-accent/50 transition-all duration-200"
+            >
+              <input
+                ref={logoInputRef}
+                type="file"
+                accept="image/*"
+                onChange={(e) => handleImageUpload('companyLogo', e)}
+                className="hidden"
+              />
+              {data.companyLogo ? (
+                <div className="relative">
+                  <img src={data.companyLogo} alt="Logo" className="w-16 h-16 mx-auto object-contain" />
+                  <span className="text-xs text-muted-foreground mt-2 block">לחץ להחלפה</span>
                 </div>
-                <span className="text-xs text-muted-foreground mt-2 block">לוגו חברה</span>
-              </>
+              ) : (
+                <>
+                  <div className="w-12 h-12 rounded-lg bg-accent mx-auto flex items-center justify-center group-hover:bg-primary/10 transition-colors">
+                    <Building2 className="w-5 h-5 text-muted-foreground group-hover:text-primary" />
+                  </div>
+                  <span className="text-xs text-muted-foreground mt-2 block">לוגו חברה</span>
+                </>
+              )}
+            </div>
+            {data.companyLogo && (
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleChange('companyLogo', '');
+                }}
+                className="absolute -top-2 -left-2 w-6 h-6 bg-destructive text-destructive-foreground rounded-full flex items-center justify-center hover:bg-destructive/90 transition-colors shadow-sm"
+                title="הסר לוגו"
+              >
+                <X className="w-3.5 h-3.5" />
+              </button>
             )}
           </div>
         </div>
