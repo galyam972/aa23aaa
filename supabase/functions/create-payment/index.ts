@@ -86,6 +86,7 @@ serve(async (req) => {
     }
 
     // Get Morning API token
+    console.log('Attempting to get Morning API token...');
     const tokenResponse = await fetch(`${MORNING_API_URL}/account/token`, {
       method: 'POST',
       headers: {
@@ -99,56 +100,65 @@ serve(async (req) => {
 
     if (!tokenResponse.ok) {
       const errorText = await tokenResponse.text();
-      console.error('Morning token error:', errorText);
-      throw new Error('Failed to authenticate with Morning API');
+      console.error('Morning token error status:', tokenResponse.status);
+      console.error('Morning token error body:', errorText);
+      throw new Error(`Morning auth failed: ${tokenResponse.status} - ${errorText}`);
     }
 
     const tokenData = await tokenResponse.json();
     const accessToken = tokenData.token;
+    console.log('Got Morning API token successfully');
 
     // Create payment form in Morning
+    const paymentFormBody = {
+      description: `רכישת ${signatures_quantity} חתימות מייל - SignaturePro`,
+      type: 320, // Payment form type for payment page
+      lang: 'he',
+      currency: 'ILS',
+      vatType: 1, // Include VAT
+      amount: totalAmount,
+      maxPayments: 1,
+      pluginId: purchase.id,
+      client: {
+        emails: [email],
+      },
+      successUrl: success_url || `${req.headers.get('origin')}/payment-success?purchase_id=${purchase.id}`,
+      failureUrl: cancel_url || `${req.headers.get('origin')}/payment-cancel?purchase_id=${purchase.id}`,
+      notifyUrl: `${SUPABASE_URL}/functions/v1/payment-webhook`,
+      income: [
+        {
+          catalogNum: 'SIG-001',
+          description: signatures_quantity <= 3 
+            ? `מסלול ${basePlan} - ${signatures_quantity} חתימות`
+            : `מסלול 3 + ${extraSignatures} חתימות נוספות`,
+          quantity: 1,
+          price: totalAmount,
+          currency: 'ILS',
+          vatType: 1,
+        },
+      ],
+    };
+
+    console.log('Creating payment form with body:', JSON.stringify(paymentFormBody));
+
     const paymentFormResponse = await fetch(`${MORNING_API_URL}/payments/form`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
         'Authorization': `Bearer ${accessToken}`,
       },
-      body: JSON.stringify({
-        description: `רכישת ${signatures_quantity} חתימות מייל - SignaturePro`,
-        type: 320, // Payment form type
-        lang: 'he',
-        currency: 'ILS',
-        vatType: 1, // Include VAT
-        amount: totalAmount,
-        maxPayments: 1,
-        pluginId: purchase.id,
-        client: {
-          email: email,
-        },
-        successUrl: success_url || `${req.headers.get('origin')}/payment-success?purchase_id=${purchase.id}`,
-        failureUrl: cancel_url || `${req.headers.get('origin')}/payment-cancel?purchase_id=${purchase.id}`,
-        notifyUrl: `${SUPABASE_URL}/functions/v1/payment-webhook`,
-        income: [
-          {
-            description: signatures_quantity <= 3 
-              ? `מסלול ${basePlan} - ${signatures_quantity} חתימות`
-              : `מסלול 3 + ${extraSignatures} חתימות נוספות`,
-            quantity: 1,
-            price: totalAmount,
-            currency: 'ILS',
-            vatType: 1,
-          },
-        ],
-      }),
+      body: JSON.stringify(paymentFormBody),
     });
 
+    const responseText = await paymentFormResponse.text();
+    console.log('Payment form response status:', paymentFormResponse.status);
+    console.log('Payment form response body:', responseText);
+
     if (!paymentFormResponse.ok) {
-      const errorText = await paymentFormResponse.text();
-      console.error('Morning payment form error:', errorText);
-      throw new Error('Failed to create payment form');
+      throw new Error(`Morning payment form failed: ${paymentFormResponse.status} - ${responseText}`);
     }
 
-    const paymentFormData = await paymentFormResponse.json();
+    const paymentFormData = JSON.parse(responseText);
 
     // Update purchase with Morning transaction ID
     await supabase
