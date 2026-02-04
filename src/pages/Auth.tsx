@@ -1,11 +1,13 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
+import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { toast } from 'sonner';
 import { Mail, Lock, ArrowRight, Loader2 } from 'lucide-react';
 import { Layout } from '@/components/layout';
@@ -14,6 +16,9 @@ export default function Auth() {
   const navigate = useNavigate();
   const { signInWithGoogle, signInWithEmail, signUpWithEmail, user, loading: authLoading } = useAuth();
   const [loading, setLoading] = useState(false);
+  const [resetLoading, setResetLoading] = useState(false);
+  const [resetDialogOpen, setResetDialogOpen] = useState(false);
+  const [resetEmail, setResetEmail] = useState('');
   
   // Login form state
   const [loginEmail, setLoginEmail] = useState('');
@@ -85,6 +90,46 @@ export default function Auth() {
       toast.success('נרשמת בהצלחה! בדוק את המייל שלך לאימות');
     }
     setLoading(false);
+  };
+
+  const handlePasswordReset = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    if (!resetEmail) {
+      toast.error('נא להזין כתובת אימייל');
+      return;
+    }
+    
+    setResetLoading(true);
+    
+    // First, request password reset from Supabase
+    const { data, error } = await supabase.auth.resetPasswordForEmail(resetEmail, {
+      redirectTo: `${window.location.origin}/reset-password`,
+    });
+    
+    if (error) {
+      toast.error('שגיאה בשליחת קישור לאיפוס סיסמה');
+      console.error(error);
+    } else {
+      // Send custom email via our edge function
+      try {
+        await supabase.functions.invoke('send-password-reset', {
+          body: {
+            email: resetEmail,
+            resetUrl: `${window.location.origin}/reset-password`,
+          },
+        });
+      } catch (emailError) {
+        console.error('Failed to send custom reset email:', emailError);
+        // The default Supabase email will be sent anyway
+      }
+      
+      toast.success('נשלח קישור לאיפוס סיסמה לכתובת המייל שלך');
+      setResetDialogOpen(false);
+      setResetEmail('');
+    }
+    
+    setResetLoading(false);
   };
 
   return (
@@ -180,6 +225,53 @@ export default function Auth() {
                   התחברות
                   <ArrowRight className="mr-2 h-4 w-4" />
                 </Button>
+                
+                <Dialog open={resetDialogOpen} onOpenChange={setResetDialogOpen}>
+                  <DialogTrigger asChild>
+                    <Button 
+                      type="button" 
+                      variant="link" 
+                      className="w-full text-sm text-muted-foreground hover:text-primary"
+                    >
+                      שכחתי סיסמה
+                    </Button>
+                  </DialogTrigger>
+                  <DialogContent className="sm:max-w-md" dir="rtl">
+                    <DialogHeader>
+                      <DialogTitle>איפוס סיסמה</DialogTitle>
+                      <DialogDescription>
+                        הזן את כתובת האימייל שלך ונשלח לך קישור לאיפוס הסיסמה
+                      </DialogDescription>
+                    </DialogHeader>
+                    <form onSubmit={handlePasswordReset} className="space-y-4">
+                      <div className="space-y-2">
+                        <Label htmlFor="reset-email">אימייל</Label>
+                        <div className="relative">
+                          <Mail className="absolute right-3 top-3 h-4 w-4 text-muted-foreground" />
+                          <Input
+                            id="reset-email"
+                            type="email"
+                            placeholder="your@email.com"
+                            value={resetEmail}
+                            onChange={(e) => setResetEmail(e.target.value)}
+                            className="pr-10"
+                            dir="ltr"
+                          />
+                        </div>
+                      </div>
+                      <Button type="submit" className="w-full" disabled={resetLoading}>
+                        {resetLoading ? (
+                          <>
+                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                            שולח...
+                          </>
+                        ) : (
+                          'שלח קישור לאיפוס'
+                        )}
+                      </Button>
+                    </form>
+                  </DialogContent>
+                </Dialog>
               </form>
             </TabsContent>
             
