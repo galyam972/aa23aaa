@@ -1,5 +1,6 @@
 import { SignatureData, SignatureStyle } from '@/types/signature';
-import { Mail, Phone, Globe, Linkedin, Twitter, Facebook, Instagram } from 'lucide-react';
+import { Mail, Phone, Globe } from 'lucide-react';
+import { SOCIAL_NETWORKS, buildSocialUrl, SocialNetworkKey } from '@/lib/socialNetworks';
 
 interface SignaturePreviewProps {
   data: SignatureData;
@@ -38,27 +39,41 @@ const SignaturePreview = ({ data, style, templateId }: SignaturePreviewProps) =>
     );
   };
 
-  const SocialIcon = ({ type, url }: { type: string; url: string }) => {
-    if (!url) return null;
-    const icons: Record<string, typeof Linkedin> = {
-      linkedin: Linkedin,
-      twitter: Twitter,
-      facebook: Facebook,
-      instagram: Instagram,
-    };
-    const Icon = icons[type];
+  // Get all active social networks from data
+  const activeSocials = SOCIAL_NETWORKS.filter(
+    network => data[network.key as SocialNetworkKey]
+  );
+
+  const SocialIconLink = ({ networkKey }: { networkKey: SocialNetworkKey }) => {
+    const value = data[networkKey];
+    if (!value) return null;
+    
+    const network = SOCIAL_NETWORKS.find(n => n.key === networkKey);
+    if (!network) return null;
+    
+    const IconComponent = network.icon;
+    const url = buildSocialUrl(networkKey, value);
+    
     return (
       <a
-        href={url.startsWith('http') ? url : `https://${url}`}
+        href={url}
         target="_blank"
         rel="noopener noreferrer"
         className="inline-block"
         style={{ color: style.primaryColor }}
       >
-        <Icon size={16} />
+        <IconComponent size={16} color={style.primaryColor} />
       </a>
     );
   };
+
+  const SocialIconsRow = () => (
+    <div className="flex gap-2 mt-2 flex-wrap">
+      {activeSocials.map(network => (
+        <SocialIconLink key={network.key} networkKey={network.key} />
+      ))}
+    </div>
+  );
 
   const ContactItem = ({ icon: Icon, value, href }: { icon: typeof Mail; value: string; href?: string }) => {
     if (!value) return null;
@@ -105,12 +120,7 @@ const SignaturePreview = ({ data, style, templateId }: SignaturePreviewProps) =>
             <ContactItem icon={Phone} value={data.phone} href={`tel:${data.phone}`} />
             <ContactItem icon={Globe} value={data.website} href={data.website} />
           </div>
-          <div className="flex gap-2 mt-2">
-            <SocialIcon type="linkedin" url={data.linkedin} />
-            <SocialIcon type="twitter" url={data.twitter} />
-            <SocialIcon type="facebook" url={data.facebook} />
-            <SocialIcon type="instagram" url={data.instagram} />
-          </div>
+          <SocialIconsRow />
         </div>
       </div>
       {data.companyLogo && (
@@ -173,12 +183,7 @@ const SignaturePreview = ({ data, style, templateId }: SignaturePreviewProps) =>
           <ContactItem icon={Phone} value={data.phone} href={`tel:${data.phone}`} />
           <ContactItem icon={Globe} value={data.website} href={data.website} />
         </div>
-        <div className="flex gap-3 mt-3">
-          <SocialIcon type="linkedin" url={data.linkedin} />
-          <SocialIcon type="twitter" url={data.twitter} />
-          <SocialIcon type="facebook" url={data.facebook} />
-          <SocialIcon type="instagram" url={data.instagram} />
-        </div>
+        <SocialIconsRow />
       </div>
     </div>
   );
@@ -205,12 +210,7 @@ const SignaturePreview = ({ data, style, templateId }: SignaturePreviewProps) =>
       <div style={{ fontSize: currentSize.text, color: '#666' }}>
         {[data.email, data.phone, data.website].filter(Boolean).join(' | ')}
       </div>
-      <div className="flex gap-2 mt-2">
-        <SocialIcon type="linkedin" url={data.linkedin} />
-        <SocialIcon type="twitter" url={data.twitter} />
-        <SocialIcon type="facebook" url={data.facebook} />
-        <SocialIcon type="instagram" url={data.instagram} />
-      </div>
+      <SocialIconsRow />
     </div>
   );
 
@@ -280,12 +280,7 @@ const SignaturePreview = ({ data, style, templateId }: SignaturePreviewProps) =>
         <ContactItem icon={Phone} value={data.phone} href={`tel:${data.phone}`} />
         <ContactItem icon={Globe} value={data.website} href={data.website} />
       </div>
-      <div className="flex gap-2 mt-3">
-        <SocialIcon type="linkedin" url={data.linkedin} />
-        <SocialIcon type="twitter" url={data.twitter} />
-        <SocialIcon type="facebook" url={data.facebook} />
-        <SocialIcon type="instagram" url={data.instagram} />
-      </div>
+      <SocialIconsRow />
     </div>
   );
 
@@ -362,12 +357,7 @@ const SignaturePreview = ({ data, style, templateId }: SignaturePreviewProps) =>
           )}
         </tbody>
       </table>
-      <div className="flex gap-2 mt-2">
-        <SocialIcon type="linkedin" url={data.linkedin} />
-        <SocialIcon type="twitter" url={data.twitter} />
-        <SocialIcon type="facebook" url={data.facebook} />
-        <SocialIcon type="instagram" url={data.instagram} />
-      </div>
+      <SocialIconsRow />
     </div>
   );
 
@@ -428,10 +418,9 @@ const SignaturePreview = ({ data, style, templateId }: SignaturePreviewProps) =>
         </div>
       )}
       <div className="flex justify-center gap-3 mt-3">
-        <SocialIcon type="linkedin" url={data.linkedin} />
-        <SocialIcon type="twitter" url={data.twitter} />
-        <SocialIcon type="facebook" url={data.facebook} />
-        <SocialIcon type="instagram" url={data.instagram} />
+        {activeSocials.map(network => (
+          <SocialIconLink key={network.key} networkKey={network.key} />
+        ))}
       </div>
       {data.companyLogo && (
         <img

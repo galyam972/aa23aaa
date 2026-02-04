@@ -1,6 +1,7 @@
 import { SignatureData } from '@/types/signature';
-import { User, Briefcase, Building2, Mail, Phone, Globe, Linkedin, Twitter, Facebook, Instagram, Upload } from 'lucide-react';
-import { useRef } from 'react';
+import { User, Briefcase, Building2, Mail, Phone, Globe, Upload, ChevronDown, ChevronUp } from 'lucide-react';
+import { useRef, useState } from 'react';
+import { SOCIAL_NETWORKS, SocialNetworkKey } from '@/lib/socialNetworks';
 
 interface SignatureFormProps {
   data: SignatureData;
@@ -10,6 +11,7 @@ interface SignatureFormProps {
 const SignatureForm = ({ data, onChange }: SignatureFormProps) => {
   const profileInputRef = useRef<HTMLInputElement>(null);
   const logoInputRef = useRef<HTMLInputElement>(null);
+  const [showAllSocials, setShowAllSocials] = useState(false);
 
   const handleChange = (field: keyof SignatureData, value: string) => {
     onChange({ ...data, [field]: value });
@@ -43,16 +45,11 @@ const SignatureForm = ({ data, onChange }: SignatureFormProps) => {
         { key: 'website', label: 'אתר', icon: Globe, placeholder: 'www.example.com', dir: 'ltr' },
       ],
     },
-    {
-      title: 'רשתות חברתיות',
-      fields: [
-        { key: 'linkedin', label: 'LinkedIn', icon: Linkedin, placeholder: 'linkedin.com/in/username', dir: 'ltr' },
-        { key: 'twitter', label: 'Twitter', icon: Twitter, placeholder: '@username', dir: 'ltr' },
-        { key: 'facebook', label: 'Facebook', icon: Facebook, placeholder: 'facebook.com/username', dir: 'ltr' },
-        { key: 'instagram', label: 'Instagram', icon: Instagram, placeholder: '@username', dir: 'ltr' },
-      ],
-    },
   ];
+
+  // Show first 7 social networks by default, rest when expanded
+  const visibleSocials = showAllSocials ? SOCIAL_NETWORKS : SOCIAL_NETWORKS.slice(0, 7);
+  const hiddenCount = SOCIAL_NETWORKS.length - 7;
 
   return (
     <div className="space-y-6">
@@ -137,6 +134,55 @@ const SignatureForm = ({ data, onChange }: SignatureFormProps) => {
           </div>
         </div>
       ))}
+
+      {/* Social Networks Section */}
+      <div className="space-y-3">
+        <h3 className="text-sm font-semibold text-foreground">רשתות חברתיות</h3>
+        <div className="space-y-2">
+          {visibleSocials.map((social) => {
+            const IconComponent = social.icon;
+            return (
+              <div key={social.key} className="relative">
+                <div className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground flex items-center justify-center">
+                  <IconComponent size={16} />
+                </div>
+                <input
+                  type="text"
+                  value={data[social.key as SocialNetworkKey] || ''}
+                  onChange={(e) => handleChange(social.key as keyof SignatureData, e.target.value)}
+                  placeholder={social.placeholder}
+                  dir="ltr"
+                  className="input-styled pr-10"
+                />
+                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">
+                  {social.labelHe}
+                </span>
+              </div>
+            );
+          })}
+        </div>
+        
+        {/* Toggle button for more social networks */}
+        {hiddenCount > 0 && (
+          <button
+            type="button"
+            onClick={() => setShowAllSocials(!showAllSocials)}
+            className="w-full flex items-center justify-center gap-2 py-2 text-sm text-primary hover:text-primary/80 transition-colors"
+          >
+            {showAllSocials ? (
+              <>
+                <ChevronUp className="w-4 h-4" />
+                הצג פחות
+              </>
+            ) : (
+              <>
+                <ChevronDown className="w-4 h-4" />
+                עוד {hiddenCount} רשתות חברתיות
+              </>
+            )}
+          </button>
+        )}
+      </div>
     </div>
   );
 };
