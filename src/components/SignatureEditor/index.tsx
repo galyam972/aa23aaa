@@ -9,6 +9,8 @@ import { toast } from 'sonner';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { DEFAULT_SIGNATURE_DATA } from '@/lib/defaultSignatureData';
+import { NewsletterModal, isNewsletterSubscribed } from '@/components/NewsletterModal';
+import { useAuth } from '@/hooks/useAuth';
 
 const templates: SignatureTemplate[] = [
   { id: 'classic', name: 'קלאסי', nameEn: 'Classic', description: 'עיצוב מסורתי ונקי', isPremium: false },
@@ -21,13 +23,19 @@ const templates: SignatureTemplate[] = [
 
 const SignatureEditor = () => {
   const previewRef = useRef<HTMLDivElement>(null);
+  const { user } = useAuth();
   const [activeTab, setActiveTab] = useState<'info' | 'style' | 'templates'>('info');
   const [copied, setCopied] = useState(false);
   const [selectedTemplate, setSelectedTemplate] = useState('classic');
   const [showAuthModal, setShowAuthModal] = useState(false);
+  const [showNewsletterModal, setShowNewsletterModal] = useState(false);
+  const [pendingAction, setPendingAction] = useState<'copy' | 'download' | null>(null);
 
-  // TODO: Replace with actual auth state when authentication is implemented
-  const isAuthenticated = false;
+  // Check if current template is free (Classic or Minimal)
+  const isFreeTemplate = selectedTemplate === 'classic' || selectedTemplate === 'minimal';
+  
+  // Check if user is a paying customer (has an active subscription)
+  const isPaidUser = !!user; // TODO: Replace with actual subscription check
 
   // Initialize with default values so guests see a live preview immediately
   const [signatureData, setSignatureData] = useState<SignatureData>(DEFAULT_SIGNATURE_DATA);
@@ -43,19 +51,42 @@ const SignatureEditor = () => {
     dividerStyle: 'line',
   });
 
-  // Handle protected actions - show CTA for guests
-  const handleProtectedAction = (_action: 'copy' | 'download' | 'save') => {
-    if (!isAuthenticated) {
-      setShowAuthModal(true);
-      return false;
+  // Execute the pending action after newsletter subscription
+  const executePendingAction = () => {
+    if (pendingAction === 'copy') {
+      performCopy();
+    } else if (pendingAction === 'download') {
+      performDownload();
     }
-    // TODO: Check credits for specific actions when payment is fully implemented
-    return true;
+    setPendingAction(null);
   };
 
-  const handleCopy = async () => {
-    if (!handleProtectedAction('copy')) return;
+  // Handle action requests
+  const handleAction = (action: 'copy' | 'download') => {
+    // If it's a premium template and user is not logged in
+    if (!isFreeTemplate && !isPaidUser) {
+      setShowAuthModal(true);
+      return;
+    }
     
+    // If it's a free template, check newsletter subscription
+    if (isFreeTemplate && !isPaidUser) {
+      if (!isNewsletterSubscribed()) {
+        setPendingAction(action);
+        setShowNewsletterModal(true);
+        return;
+      }
+    }
+    
+    // Execute the action
+    if (action === 'copy') {
+      performCopy();
+    } else {
+      performDownload();
+    }
+  };
+
+  const performCopy = async () => {
     if (previewRef.current) {
       try {
         const htmlContent = previewRef.current.innerHTML;
@@ -84,9 +115,7 @@ const SignatureEditor = () => {
     }
   };
 
-  const handleDownload = () => {
-    if (!handleProtectedAction('download')) return;
-    
+  const performDownload = () => {
     if (previewRef.current) {
       const htmlContent = `
 <!DOCTYPE html>
@@ -187,14 +216,14 @@ const SignatureEditor = () => {
                 <h2 className="font-semibold text-foreground">תצוגה מקדימה</h2>
                 <div className="flex gap-2">
                   <button
-                    onClick={handleCopy}
+                    onClick={() => handleAction('copy')}
                     className="btn-secondary flex items-center gap-2 text-sm py-2"
                   >
                     {copied ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
                     {copied ? 'הועתק!' : 'העתק'}
                   </button>
                   <button
-                    onClick={handleDownload}
+                    onClick={() => handleAction('download')}
                     className="btn-primary flex items-center gap-2 text-sm py-2"
                   >
                     <Download className="w-4 h-4" />
@@ -205,34 +234,35 @@ const SignatureEditor = () => {
 
               {/* Preview Container */}
               <div className="bg-secondary/30 rounded-xl p-4">
-                <div className="bg-white rounded-lg shadow-sm">
+                <div className="bg-card rounded-lg shadow-sm">
                   {/* Email Header Mock */}
-                  <div className="border-b border-gray-100 p-4">
+                  <div className="border-b border-border p-4">
                     <div className="flex items-center gap-3">
-                      <div className="w-8 h-8 rounded-full bg-gray-200" />
+                      <div className="w-8 h-8 rounded-full bg-muted" />
                       <div>
-                        <div className="text-sm font-medium text-gray-800">
+                        <div className="text-sm font-medium text-foreground">
                           {signatureData.fullName || 'השם שלך'}
                         </div>
-                        <div className="text-xs text-gray-500">אלי: recipient@email.com</div>
+                        <div className="text-xs text-muted-foreground">אלי: recipient@email.com</div>
                       </div>
                     </div>
                   </div>
 
                   {/* Email Body Mock */}
                   <div className="p-4">
-                    <div className="space-y-2 mb-4 text-sm text-gray-600" dir="rtl">
+                    <div className="space-y-2 mb-4 text-sm text-muted-foreground" dir="rtl">
                       <p>שלום רב,</p>
                       <p>תודה על פנייתך. אשמח לעזור לך בכל שאלה.</p>
                       <p>בברכה,</p>
                     </div>
 
                     {/* Signature Preview */}
-                    <div ref={previewRef} className="border-t border-gray-100 pt-4">
+                    <div ref={previewRef} className="border-t border-border pt-4">
                       <SignaturePreview
                         data={signatureData}
                         style={signatureStyle}
                         templateId={selectedTemplate}
+                        showCredit={isFreeTemplate && !isPaidUser}
                       />
                     </div>
                   </div>
@@ -285,6 +315,13 @@ const SignatureEditor = () => {
           </div>
         </DialogContent>
       </Dialog>
+
+      {/* Newsletter Modal for Free Templates */}
+      <NewsletterModal 
+        open={showNewsletterModal} 
+        onOpenChange={setShowNewsletterModal}
+        onSuccess={executePendingAction}
+      />
     </div>
   );
 };

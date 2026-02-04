@@ -6,9 +6,11 @@ interface SignaturePreviewProps {
   data: SignatureData;
   style: SignatureStyle;
   templateId: string;
+  showCredit?: boolean;
+  publishedUrl?: string;
 }
 
-const SignaturePreview = ({ data, style, templateId }: SignaturePreviewProps) => {
+const SignaturePreview = ({ data, style, templateId, showCredit = false, publishedUrl = 'https://signaturepro.co.il' }: SignaturePreviewProps) => {
   const fontSize = {
     small: { name: '14px', title: '12px', text: '11px' },
     medium: { name: '16px', title: '13px', text: '12px' },
@@ -443,9 +445,35 @@ const SignaturePreview = ({ data, style, templateId }: SignaturePreviewProps) =>
 
   const SelectedTemplate = templates[templateId] || ClassicTemplate;
 
+  // Credit line component for free templates
+  const CreditLine = () => (
+    <div 
+      style={{ 
+        marginTop: '12px', 
+        paddingTop: '8px', 
+        borderTop: '1px solid #e5e5e5',
+        fontSize: '10px', 
+        color: '#999',
+        textAlign: 'center',
+        direction: 'rtl'
+      }}
+    >
+      נוצר ע"י{' '}
+      <a 
+        href={publishedUrl} 
+        target="_blank" 
+        rel="noopener noreferrer"
+        style={{ color: '#7C3AED', textDecoration: 'none' }}
+      >
+        GalyamStudio
+      </a>
+    </div>
+  );
+
   return (
     <div className="bg-white p-6 rounded-xl" style={{ minHeight: '200px' }}>
       <SelectedTemplate />
+      {showCredit && <CreditLine />}
     </div>
   );
 };
