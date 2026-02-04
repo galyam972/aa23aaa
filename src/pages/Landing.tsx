@@ -130,7 +130,7 @@ const Landing = () => {
           <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold text-foreground mb-6 leading-tight">
             צור חתימת מייל מרשימה
             <br />
-            <span className="gradient-text">תוך דקות ספורות</span>
+            <span className="text-white">תוך דקות ספורות</span>
           </h1>
           <p className="text-lg md:text-xl text-muted-foreground max-w-2xl mx-auto mb-8">
             עיצוב מקצועי, תבניות מגוונות, וייצוא קל לכל תוכנות המייל.
