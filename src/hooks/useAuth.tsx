@@ -28,19 +28,28 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setUser(session?.user ?? null);
         setLoading(false);
 
-        // Send welcome email for new users (first sign up)
+        // Send welcome email for new users (first sign in - including Google OAuth)
         if (event === 'SIGNED_IN' && session?.user) {
-          const isNewUser = session.user.created_at && 
-            new Date(session.user.created_at).getTime() > Date.now() - 60000; // Created within last minute
+          const userEmail = session.user.email;
+          const welcomeSentKey = `welcome_sent_${userEmail}`;
+          const alreadySentWelcome = localStorage.getItem(welcomeSentKey);
           
-          if (isNewUser) {
+          // Check if user was created recently (within 2 minutes) AND we haven't sent welcome email yet
+          const isNewUser = session.user.created_at && 
+            new Date(session.user.created_at).getTime() > Date.now() - 120000; // 2 minutes window
+          
+          if (isNewUser && !alreadySentWelcome) {
             try {
+              console.log('Sending welcome email for new user:', userEmail);
               await supabase.functions.invoke('send-welcome-email', {
                 body: {
-                  email: session.user.email,
+                  email: userEmail,
                   displayName: session.user.user_metadata?.full_name || session.user.user_metadata?.name,
                 },
               });
+              // Mark that we sent welcome email to this user
+              localStorage.setItem(welcomeSentKey, 'true');
+              console.log('Welcome email sent successfully to:', userEmail);
             } catch (emailError) {
               console.error('Failed to send welcome email:', emailError);
             }
@@ -83,8 +92,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       },
     });
 
-    // Send welcome email immediately after signup (before email verification)
+    // Send welcome email immediately for email signup (since user needs to verify email first)
+    // For Google OAuth, the email is sent in onAuthStateChange
     if (!error && data.user) {
+      const welcomeSentKey = `welcome_sent_${email}`;
       try {
         await supabase.functions.invoke('send-welcome-email', {
           body: {
@@ -92,10 +103,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             displayName: undefined,
           },
         });
-        console.log('Welcome email sent successfully');
+        localStorage.setItem(welcomeSentKey, 'true');
+        console.log('Welcome email sent successfully for email signup');
       } catch (emailError) {
         console.error('Failed to send welcome email:', emailError);
-        // Don't fail signup if email fails
       }
     }
 
