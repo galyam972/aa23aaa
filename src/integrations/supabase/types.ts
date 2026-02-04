@@ -16,43 +16,61 @@ export type Database = {
     Tables: {
       purchases: {
         Row: {
+          amount_paid: number | null
           base_plan: number
           created_at: string
           currency: string
           email: string
           expires_at: string
           extra_signatures: number
+          gateway: string | null
+          gateway_transaction_id: string | null
           id: string
           morning_invoice_id: string | null
           morning_transaction_id: string | null
+          plan_type: string | null
+          raw_payload: Json | null
+          signatures_purchased: number
           signatures_quantity: number
           status: string
           total_amount: number
         }
         Insert: {
+          amount_paid?: number | null
           base_plan: number
           created_at?: string
           currency?: string
           email: string
           expires_at?: string
           extra_signatures?: number
+          gateway?: string | null
+          gateway_transaction_id?: string | null
           id?: string
           morning_invoice_id?: string | null
           morning_transaction_id?: string | null
+          plan_type?: string | null
+          raw_payload?: Json | null
+          signatures_purchased?: number
           signatures_quantity: number
           status?: string
           total_amount: number
         }
         Update: {
+          amount_paid?: number | null
           base_plan?: number
           created_at?: string
           currency?: string
           email?: string
           expires_at?: string
           extra_signatures?: number
+          gateway?: string | null
+          gateway_transaction_id?: string | null
           id?: string
           morning_invoice_id?: string | null
           morning_transaction_id?: string | null
+          plan_type?: string | null
+          raw_payload?: Json | null
+          signatures_purchased?: number
           signatures_quantity?: number
           status?: string
           total_amount?: number
@@ -62,50 +80,78 @@ export type Database = {
       user_signatures: {
         Row: {
           created_at: string
-          email: string
-          expires_at: string
+          html: string | null
           id: string
-          is_active: boolean
-          max_signatures: number
-          purchase_id: string
-          used_signatures: number
+          signature_data: Json
+          signature_name: string | null
+          template_id: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          html?: string | null
+          id?: string
+          signature_data?: Json
+          signature_name?: string | null
+          template_id?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          html?: string | null
+          id?: string
+          signature_data?: Json
+          signature_name?: string | null
+          template_id?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      user_subscriptions: {
+        Row: {
+          created_at: string
+          email: string
+          id: string
+          payer_name: string | null
+          plan_type: string
+          signature_credits: number
+          updated_at: string
+          user_id: string
         }
         Insert: {
           created_at?: string
           email: string
-          expires_at?: string
           id?: string
-          is_active?: boolean
-          max_signatures: number
-          purchase_id: string
-          used_signatures?: number
+          payer_name?: string | null
+          plan_type?: string
+          signature_credits?: number
+          updated_at?: string
+          user_id: string
         }
         Update: {
           created_at?: string
           email?: string
-          expires_at?: string
           id?: string
-          is_active?: boolean
-          max_signatures?: number
-          purchase_id?: string
-          used_signatures?: number
+          payer_name?: string | null
+          plan_type?: string
+          signature_credits?: number
+          updated_at?: string
+          user_id?: string
         }
-        Relationships: [
-          {
-            foreignKeyName: "user_signatures_purchase_id_fkey"
-            columns: ["purchase_id"]
-            isOneToOne: false
-            referencedRelation: "purchases"
-            referencedColumns: ["id"]
-          },
-        ]
+        Relationships: []
       }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      decrement_signature_credit: {
+        Args: { p_user_id: string }
+        Returns: boolean
+      }
     }
     Enums: {
       [_ in never]: never
