@@ -12,7 +12,7 @@ import { DEFAULT_SIGNATURE_DATA } from '@/lib/defaultSignatureData';
 
 const templates: SignatureTemplate[] = [
   { id: 'classic', name: 'קלאסי', nameEn: 'Classic', description: 'עיצוב מסורתי ונקי', isPremium: false },
-  { id: 'modern', name: 'מודרני', nameEn: 'Modern', description: 'עיצוב עדכני עם גרדיאנטים', isPremium: false },
+  { id: 'modern', name: 'מודרני', nameEn: 'Modern', description: 'עיצוב עדכני עם גרדיאנטים', isPremium: true },
   { id: 'minimal', name: 'מינימלי', nameEn: 'Minimal', description: 'פשוט ואלגנטי', isPremium: false },
   { id: 'creative', name: 'קריאטיבי', nameEn: 'Creative', description: 'בולט ויצירתי', isPremium: true },
   { id: 'corporate', name: 'עסקי', nameEn: 'Corporate', description: 'מקצועי ורציני', isPremium: true },
