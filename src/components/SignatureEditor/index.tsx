@@ -6,6 +6,9 @@ import TemplateSelector from './TemplateSelector';
 import SignaturePreview from './SignaturePreview';
 import { Copy, Download, Check, Palette, User, Layout } from 'lucide-react';
 import { toast } from 'sonner';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
+import { Button } from '@/components/ui/button';
+import { DEFAULT_SIGNATURE_DATA } from '@/lib/defaultSignatureData';
 
 const templates: SignatureTemplate[] = [
   { id: 'classic', name: 'קלאסי', nameEn: 'Classic', description: 'עיצוב מסורתי ונקי', isPremium: false },
@@ -21,21 +24,13 @@ const SignatureEditor = () => {
   const [activeTab, setActiveTab] = useState<'info' | 'style' | 'templates'>('info');
   const [copied, setCopied] = useState(false);
   const [selectedTemplate, setSelectedTemplate] = useState('classic');
+  const [showAuthModal, setShowAuthModal] = useState(false);
 
-  const [signatureData, setSignatureData] = useState<SignatureData>({
-    fullName: '',
-    jobTitle: '',
-    company: '',
-    email: '',
-    phone: '',
-    website: '',
-    linkedin: '',
-    twitter: '',
-    facebook: '',
-    instagram: '',
-    profileImage: '',
-    companyLogo: '',
-  });
+  // TODO: Replace with actual auth state when authentication is implemented
+  const isAuthenticated = false;
+
+  // Initialize with default values so guests see a live preview immediately
+  const [signatureData, setSignatureData] = useState<SignatureData>(DEFAULT_SIGNATURE_DATA);
 
   const [signatureStyle, setSignatureStyle] = useState<SignatureStyle>({
     primaryColor: '#7C3AED',
@@ -48,7 +43,19 @@ const SignatureEditor = () => {
     dividerStyle: 'line',
   });
 
+  // Handle protected actions - show CTA for guests
+  const handleProtectedAction = (_action: 'copy' | 'download' | 'save') => {
+    if (!isAuthenticated) {
+      setShowAuthModal(true);
+      return false;
+    }
+    // TODO: Check credits for specific actions when payment is fully implemented
+    return true;
+  };
+
   const handleCopy = async () => {
+    if (!handleProtectedAction('copy')) return;
+    
     if (previewRef.current) {
       try {
         const htmlContent = previewRef.current.innerHTML;
@@ -61,7 +68,7 @@ const SignatureEditor = () => {
         setCopied(true);
         toast.success('החתימה הועתקה! הדבק אותה באפליקציית המייל שלך');
         setTimeout(() => setCopied(false), 2000);
-      } catch (err) {
+      } catch {
         // Fallback for browsers that don't support clipboard API
         const range = document.createRange();
         range.selectNodeContents(previewRef.current);
@@ -78,6 +85,8 @@ const SignatureEditor = () => {
   };
 
   const handleDownload = () => {
+    if (!handleProtectedAction('download')) return;
+    
     if (previewRef.current) {
       const htmlContent = `
 <!DOCTYPE html>
@@ -238,6 +247,44 @@ const SignatureEditor = () => {
           </div>
         </div>
       </main>
+
+      {/* Guest CTA Modal */}
+      <Dialog open={showAuthModal} onOpenChange={setShowAuthModal}>
+        <DialogContent className="sm:max-w-md text-center" dir="rtl">
+          <DialogHeader>
+            <DialogTitle className="text-xl font-bold text-center">
+              🎨 החתימה שלך נראית מעולה!
+            </DialogTitle>
+            <DialogDescription className="text-center mt-2">
+              כדי לשמור, להעתיק או להוריד את החתימה, יש להירשם או להתחבר.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 mt-4">
+            <div className="bg-accent/50 rounded-lg p-4 text-sm text-muted-foreground">
+              <p className="font-medium text-foreground mb-2">✨ מה תקבלו?</p>
+              <ul className="space-y-1 text-right">
+                <li>• שמירת החתימה שיצרתם</li>
+                <li>• העתקה ישירות למייל</li>
+                <li>• הורדת קובץ HTML</li>
+                <li>• גישה לכל התבניות</li>
+              </ul>
+            </div>
+            <Button 
+              className="w-full btn-primary"
+              onClick={() => {
+                setShowAuthModal(false);
+                // TODO: Navigate to pricing/auth page
+                toast.info('מעבר לדף ההרשמה...');
+              }}
+            >
+              להרשמה כדי לשמור את החתימה
+            </Button>
+            <p className="text-xs text-muted-foreground">
+              כבר רשומים? <button className="text-primary hover:underline">התחברו כאן</button>
+            </p>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
