@@ -23,10 +23,29 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     // Set up auth state listener FIRST
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      (_event, session) => {
+      async (event, session) => {
         setSession(session);
         setUser(session?.user ?? null);
         setLoading(false);
+
+        // Send welcome email for new users (first sign up)
+        if (event === 'SIGNED_IN' && session?.user) {
+          const isNewUser = session.user.created_at && 
+            new Date(session.user.created_at).getTime() > Date.now() - 60000; // Created within last minute
+          
+          if (isNewUser) {
+            try {
+              await supabase.functions.invoke('send-welcome-email', {
+                body: {
+                  email: session.user.email,
+                  displayName: session.user.user_metadata?.full_name || session.user.user_metadata?.name,
+                },
+              });
+            } catch (emailError) {
+              console.error('Failed to send welcome email:', emailError);
+            }
+          }
+        }
       }
     );
 
