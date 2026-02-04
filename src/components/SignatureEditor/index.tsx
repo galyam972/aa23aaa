@@ -150,26 +150,9 @@ const SignatureEditor = () => {
   ] as const;
 
   return (
-    <div className="min-h-screen gradient-hero">
-      {/* Header */}
-      <header className="py-6 px-4">
-        <div className="container mx-auto">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl gradient-primary flex items-center justify-center">
-                <span className="text-xl font-bold text-white">✉️</span>
-              </div>
-              <div>
-                <h1 className="text-xl font-bold text-foreground">SignaturePro</h1>
-                <p className="text-xs text-muted-foreground">מחולל חתימות מייל מקצועי</p>
-              </div>
-            </div>
-          </div>
-        </div>
-      </header>
-
+    <div className="gradient-hero py-6">
       {/* Main Content */}
-      <main className="container mx-auto px-4 pb-12">
+      <div className="container mx-auto px-4 pb-12">
         <div className="grid lg:grid-cols-2 gap-6">
           {/* Editor Panel */}
           <div className="card-glass p-6 animate-fade-in">
@@ -276,7 +259,7 @@ const SignatureEditor = () => {
             </div>
           </div>
         </div>
-      </main>
+      </div>
 
       {/* Guest CTA Modal */}
       <Dialog open={showAuthModal} onOpenChange={setShowAuthModal}>
