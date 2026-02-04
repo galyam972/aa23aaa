@@ -14,7 +14,92 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      purchases: {
+        Row: {
+          base_plan: number
+          created_at: string
+          currency: string
+          email: string
+          expires_at: string
+          extra_signatures: number
+          id: string
+          morning_invoice_id: string | null
+          morning_transaction_id: string | null
+          signatures_quantity: number
+          status: string
+          total_amount: number
+        }
+        Insert: {
+          base_plan: number
+          created_at?: string
+          currency?: string
+          email: string
+          expires_at?: string
+          extra_signatures?: number
+          id?: string
+          morning_invoice_id?: string | null
+          morning_transaction_id?: string | null
+          signatures_quantity: number
+          status?: string
+          total_amount: number
+        }
+        Update: {
+          base_plan?: number
+          created_at?: string
+          currency?: string
+          email?: string
+          expires_at?: string
+          extra_signatures?: number
+          id?: string
+          morning_invoice_id?: string | null
+          morning_transaction_id?: string | null
+          signatures_quantity?: number
+          status?: string
+          total_amount?: number
+        }
+        Relationships: []
+      }
+      user_signatures: {
+        Row: {
+          created_at: string
+          email: string
+          expires_at: string
+          id: string
+          is_active: boolean
+          max_signatures: number
+          purchase_id: string
+          used_signatures: number
+        }
+        Insert: {
+          created_at?: string
+          email: string
+          expires_at?: string
+          id?: string
+          is_active?: boolean
+          max_signatures: number
+          purchase_id: string
+          used_signatures?: number
+        }
+        Update: {
+          created_at?: string
+          email?: string
+          expires_at?: string
+          id?: string
+          is_active?: boolean
+          max_signatures?: number
+          purchase_id?: string
+          used_signatures?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_signatures_purchase_id_fkey"
+            columns: ["purchase_id"]
+            isOneToOne: false
+            referencedRelation: "purchases"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never

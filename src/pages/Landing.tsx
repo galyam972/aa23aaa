@@ -1,9 +1,10 @@
+import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Check, Mail, Palette, Download, Zap, Shield, Clock, Users, Star, ArrowLeft } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-
+import PurchaseModal from '@/components/PurchaseModal';
 const features = [
   {
     icon: Palette,
@@ -87,6 +88,14 @@ const testimonials = [
 ];
 
 const Landing = () => {
+  const [purchaseModalOpen, setPurchaseModalOpen] = useState(false);
+  const [selectedPlan, setSelectedPlan] = useState(1);
+
+  const handlePlanSelect = (planId: number) => {
+    setSelectedPlan(planId);
+    setPurchaseModalOpen(true);
+  };
+
   return (
     <div className="min-h-screen" dir="rtl">
       {/* Header */}
@@ -258,14 +267,13 @@ const Landing = () => {
                   </div>
                 </CardContent>
                 <CardFooter>
-                  <Link to="/editor" className="w-full">
-                    <Button 
-                      className={`w-full ${plan.popular ? 'btn-primary' : ''}`}
-                      variant={plan.popular ? 'default' : 'outline'}
-                    >
-                      בחר מסלול
-                    </Button>
-                  </Link>
+                  <Button 
+                    className={`w-full ${plan.popular ? 'btn-primary' : ''}`}
+                    variant={plan.popular ? 'default' : 'outline'}
+                    onClick={() => handlePlanSelect(plan.id)}
+                  >
+                    בחר מסלול
+                  </Button>
                 </CardFooter>
               </Card>
             ))}
@@ -354,6 +362,13 @@ const Landing = () => {
           </div>
         </div>
       </footer>
+
+      {/* Purchase Modal */}
+      <PurchaseModal
+        isOpen={purchaseModalOpen}
+        onClose={() => setPurchaseModalOpen(false)}
+        initialPlan={selectedPlan}
+      />
     </div>
   );
 };
