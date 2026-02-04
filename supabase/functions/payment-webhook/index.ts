@@ -7,64 +7,13 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-morning-signature',
 };
 
-// Plan types and their permissions
+// Plan types
 type PlanType = 'basic' | 'pro' | 'business';
 
-interface PlanPermissions {
-  can_save: boolean;
-  can_export_html: boolean;
-  can_copy_clipboard: boolean;
-  can_upload_logo: boolean;
-  can_use_all_templates: boolean;
-  can_use_advanced_design: boolean;
-  can_manage_multiple_signatures: boolean;
-  can_use_future_extensions: boolean;
-}
-
-const PLAN_PERMISSIONS: Record<PlanType, PlanPermissions> = {
-  basic: {
-    can_save: true,
-    can_export_html: true,
-    can_copy_clipboard: true,
-    can_upload_logo: false,
-    can_use_all_templates: false,
-    can_use_advanced_design: false,
-    can_manage_multiple_signatures: false,
-    can_use_future_extensions: false,
-  },
-  pro: {
-    can_save: true,
-    can_export_html: true,
-    can_copy_clipboard: true,
-    can_upload_logo: true,
-    can_use_all_templates: true,
-    can_use_advanced_design: true,
-    can_manage_multiple_signatures: false,
-    can_use_future_extensions: false,
-  },
-  business: {
-    can_save: true,
-    can_export_html: true,
-    can_copy_clipboard: true,
-    can_upload_logo: true,
-    can_use_all_templates: true,
-    can_use_advanced_design: true,
-    can_manage_multiple_signatures: true,
-    can_use_future_extensions: true,
-  },
-};
-
-// Determine plan type based on signatures quantity and total amount
-function determinePlanType(signaturesQuantity: number, totalAmount: number): PlanType {
-  // Business: 3+ signatures
-  if (signaturesQuantity >= 3) {
-    return 'business';
-  }
-  // Pro: 2 signatures (69 ILS)
-  if (signaturesQuantity === 2) {
-    return 'pro';
-  }
-  // Basic: 1 signature (39 ILS)
+// Determine plan type based on signatures quantity
+function determinePlanType(signaturesQuantity: number): PlanType {
+  if (signaturesQuantity >= 3) return 'business';
+  if (signaturesQuantity === 2) return 'pro';
   return 'basic';
 }
 
@@ -125,9 +74,12 @@ serve(async (req) => {
       
       if (!isValid) {
         console.error('Invalid webhook signature');
-        throw new Error('Invalid webhook signature');
+        return new Response(
+          JSON.stringify({ success: false, error: 'Invalid webhook signature' }),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 401 }
+        );
       }
-      console.log('Webhook signature verified successfully');
+      console.log('Webhook signature verified');
     } else {
       console.warn('MORNING_WEBHOOK_SECRET not configured - skipping signature verification');
     }
@@ -136,140 +88,145 @@ serve(async (req) => {
     const payload = JSON.parse(rawBody);
     
     // Extract Morning webhook data
-    // Morning sends: pluginId, status, id (transactionId), invoiceId, payer, total, transactions
     const { 
-      pluginId, 
+      pluginId,  // Our purchase ID
       status, 
-      id: transactionId, 
+      id: morningTransactionId, 
       invoiceId,
       payer,
       total,
       transactions
     } = payload;
 
-    // Get gatewayTransactionId for duplicate prevention
-    const gatewayTransactionId = transactions?.[0]?.gatewayTransactionId || transactionId;
+    const gatewayTransactionId = transactions?.[0]?.gatewayTransactionId || morningTransactionId;
+    const payerEmail = payer?.email;
+    const payerName = payer?.name;
 
-    if (!pluginId) {
-      throw new Error('Missing pluginId (purchase_id)');
+    if (!payerEmail) {
+      throw new Error('Missing payer email');
     }
 
     // Check for duplicate transaction
     if (gatewayTransactionId) {
-      const { data: existingTx } = await supabase
+      const { data: existingPurchase } = await supabase
         .from('purchases')
         .select('id')
         .eq('gateway_transaction_id', gatewayTransactionId)
-        .single();
+        .maybeSingle();
 
-      if (existingTx) {
-        console.log(`Duplicate transaction detected: ${gatewayTransactionId}`);
+      if (existingPurchase) {
+        console.log(`Duplicate transaction: ${gatewayTransactionId}`);
         return new Response(
           JSON.stringify({ success: true, message: 'Transaction already processed' }),
-          {
-            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-            status: 200,
-          }
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
         );
       }
     }
 
-    // Get the purchase record
-    const { data: purchase, error: fetchError } = await supabase
-      .from('purchases')
-      .select('*')
-      .eq('id', pluginId)
-      .single();
+    // Determine payment status (Morning: 0=pending, 1=success, 2=failed, 3=cancelled)
+    let paymentStatus: 'pending' | 'paid' | 'failed' = 'pending';
+    if (status === 1) paymentStatus = 'paid';
+    else if (status === 2 || status === 3) paymentStatus = 'failed';
 
-    if (fetchError || !purchase) {
-      console.error('Purchase fetch error:', fetchError);
-      throw new Error('Purchase not found');
-    }
+    // Get original purchase if pluginId provided
+    let signaturesQuantity = 1;
+    let originalPurchase = null;
 
-    // Check payment status from Morning
-    // Status codes: 0 = pending, 1 = success, 2 = failed, 3 = cancelled
-    let newStatus: 'pending' | 'completed' | 'failed' = 'pending';
-    
-    if (status === 1) {
-      newStatus = 'completed';
-    } else if (status === 2 || status === 3) {
-      newStatus = 'failed';
+    if (pluginId) {
+      const { data: purchase } = await supabase
+        .from('purchases')
+        .select('*')
+        .eq('id', pluginId)
+        .maybeSingle();
+      
+      if (purchase) {
+        originalPurchase = purchase;
+        signaturesQuantity = purchase.signatures_quantity || 1;
+      }
     }
 
     // Determine plan type
-    const planType = determinePlanType(purchase.signatures_quantity, purchase.total_amount);
-    const permissions = PLAN_PERMISSIONS[planType];
+    const planType = determinePlanType(signaturesQuantity);
 
-    console.log(`Payment status: ${newStatus}, Plan type: ${planType}`);
+    console.log(`Payment: ${paymentStatus}, Plan: ${planType}, Signatures: ${signaturesQuantity}`);
 
-    // Update purchase status with gateway transaction ID
-    const { error: updateError } = await supabase
-      .from('purchases')
-      .update({
-        status: newStatus,
-        morning_transaction_id: transactionId || purchase.morning_transaction_id,
-        morning_invoice_id: invoiceId || null,
-        gateway_transaction_id: gatewayTransactionId || null,
-        plan_type: planType,
-      })
-      .eq('id', pluginId);
+    // Update or create purchase record
+    const purchaseData = {
+      email: payerEmail,
+      status: paymentStatus,
+      morning_transaction_id: morningTransactionId,
+      morning_invoice_id: invoiceId || null,
+      gateway_transaction_id: gatewayTransactionId,
+      gateway: 'morning',
+      plan_type: planType,
+      signatures_purchased: signaturesQuantity,
+      amount_paid: total || null,
+      raw_payload: payload,
+    };
 
-    if (updateError) {
-      console.error('Purchase update error:', updateError);
-      throw new Error('Failed to update purchase');
+    if (originalPurchase) {
+      // Update existing purchase
+      await supabase
+        .from('purchases')
+        .update(purchaseData)
+        .eq('id', pluginId);
+    } else {
+      // Create new purchase
+      await supabase
+        .from('purchases')
+        .insert({
+          ...purchaseData,
+          signatures_quantity: signaturesQuantity,
+          base_plan: signaturesQuantity,
+          total_amount: total || 0,
+          currency: 'ILS',
+        });
     }
 
-    // If payment completed, create user signature allocation
-    if (newStatus === 'completed') {
-      // Check if signature allocation already exists for this purchase
-      const { data: existingSignature } = await supabase
-        .from('user_signatures')
-        .select('id')
-        .eq('purchase_id', pluginId)
-        .single();
+    // If payment successful, update user subscription
+    if (paymentStatus === 'paid') {
+      // Check if user subscription exists (by email)
+      const { data: existingSubscription } = await supabase
+        .from('user_subscriptions')
+        .select('*')
+        .eq('email', payerEmail)
+        .maybeSingle();
 
-      if (!existingSignature) {
-        const expiresAt = new Date();
-        expiresAt.setMonth(expiresAt.getMonth() + 3);
+      if (existingSubscription) {
+        // Update: add credits and upgrade plan if better
+        const currentPlanRank = { guest: 0, basic: 1, pro: 2, business: 3 };
+        const newPlanRank = currentPlanRank[planType];
+        const existingPlanRank = currentPlanRank[existingSubscription.plan_type as keyof typeof currentPlanRank] || 0;
+        
+        const upgradedPlan = newPlanRank > existingPlanRank ? planType : existingSubscription.plan_type;
+        
+        await supabase
+          .from('user_subscriptions')
+          .update({
+            signature_credits: existingSubscription.signature_credits + signaturesQuantity,
+            plan_type: upgradedPlan,
+            payer_name: payerName || existingSubscription.payer_name,
+          })
+          .eq('id', existingSubscription.id);
 
-        // Use payer email if available, otherwise use purchase email
-        const userEmail = payer?.email || purchase.email;
-        const userName = payer?.name || null;
-
-        const { error: signatureError } = await supabase
-          .from('user_signatures')
-          .insert({
-            purchase_id: pluginId,
-            email: userEmail,
-            max_signatures: purchase.signatures_quantity,
-            used_signatures: 0,
-            is_active: true,
-            expires_at: expiresAt.toISOString(),
-            plan_type: planType,
-            permissions: permissions,
-            payer_name: userName,
-          });
-
-        if (signatureError) {
-          console.error('Signature allocation error:', signatureError);
-          throw new Error('Failed to allocate signatures');
-        }
-
-        console.log(`Allocated ${purchase.signatures_quantity} ${planType} signatures for ${userEmail}`);
+        console.log(`Updated subscription for ${payerEmail}: +${signaturesQuantity} credits, plan: ${upgradedPlan}`);
+      } else {
+        // Note: Cannot create user_subscription without user_id (FK constraint)
+        // The subscription will be created when user signs up/logs in with this email
+        console.log(`Payment received for ${payerEmail}, subscription will be created on first login`);
       }
     }
 
     return new Response(
       JSON.stringify({ 
         success: true, 
-        status: newStatus,
+        status: paymentStatus,
         plan_type: planType,
+        signatures: signaturesQuantity,
       }),
-      {
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        status: 200,
-      }
+      { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
     );
+
   } catch (error) {
     console.error('Webhook error:', error);
     return new Response(
@@ -277,10 +234,7 @@ serve(async (req) => {
         success: false,
         error: error instanceof Error ? error.message : 'Unknown error',
       }),
-      {
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        status: 400,
-      }
+      { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 400 }
     );
   }
 });
