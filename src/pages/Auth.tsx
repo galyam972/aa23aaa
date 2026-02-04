@@ -8,6 +8,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { toast } from 'sonner';
 import { Mail, Lock, ArrowRight, Loader2 } from 'lucide-react';
+import { Layout } from '@/components/layout';
 
 export default function Auth() {
   const navigate = useNavigate();
@@ -87,8 +88,9 @@ export default function Auth() {
   };
 
   return (
-    <div className="min-h-screen gradient-hero flex items-center justify-center p-4">
-      <Card className="w-full max-w-md shadow-elevated">
+    <Layout>
+      <div className="flex-1 gradient-hero flex items-center justify-center p-4 py-12">
+        <Card className="w-full max-w-md shadow-elevated">
         <CardHeader className="text-center">
           <CardTitle className="text-2xl font-bold">
             ברוכים הבאים ל-<span className="gradient-text">SignaturePro</span>
@@ -244,6 +246,7 @@ export default function Auth() {
           </p>
         </CardContent>
       </Card>
-    </div>
+      </div>
+    </Layout>
   );
 }
