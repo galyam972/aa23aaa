@@ -13,6 +13,8 @@ const SignatureForm = ({ data, onChange }: SignatureFormProps) => {
   const profileInputRef = useRef<HTMLInputElement>(null);
   const logoInputRef = useRef<HTMLInputElement>(null);
   const [showAllSocials, setShowAllSocials] = useState(false);
+  const [dragOverProfile, setDragOverProfile] = useState(false);
+  const [dragOverLogo, setDragOverLogo] = useState(false);
 
   const handleChange = (field: keyof SignatureData, value: string) => {
     onChange({ ...data, [field]: value });
@@ -21,11 +23,49 @@ const SignatureForm = ({ data, onChange }: SignatureFormProps) => {
   const handleImageUpload = (field: 'profileImage' | 'companyLogo', e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        handleChange(field, reader.result as string);
-      };
-      reader.readAsDataURL(file);
+      processImageFile(field, file);
+    }
+  };
+
+  const processImageFile = (field: 'profileImage' | 'companyLogo', file: File) => {
+    if (!file.type.startsWith('image/')) return;
+    
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      handleChange(field, reader.result as string);
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handleDragOver = (e: React.DragEvent, field: 'profileImage' | 'companyLogo') => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (field === 'profileImage') {
+      setDragOverProfile(true);
+    } else {
+      setDragOverLogo(true);
+    }
+  };
+
+  const handleDragLeave = (e: React.DragEvent, field: 'profileImage' | 'companyLogo') => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (field === 'profileImage') {
+      setDragOverProfile(false);
+    } else {
+      setDragOverLogo(false);
+    }
+  };
+
+  const handleDrop = (e: React.DragEvent, field: 'profileImage' | 'companyLogo') => {
+    e.preventDefault();
+    e.stopPropagation();
+    setDragOverProfile(false);
+    setDragOverLogo(false);
+    
+    const file = e.dataTransfer.files?.[0];
+    if (file) {
+      processImageFile(field, file);
     }
   };
 
@@ -62,7 +102,14 @@ const SignatureForm = ({ data, onChange }: SignatureFormProps) => {
           <div className="relative">
             <div 
               onClick={() => profileInputRef.current?.click()}
-              className="group cursor-pointer border-2 border-dashed border-border rounded-xl p-4 text-center hover:border-primary hover:bg-accent/50 transition-all duration-200"
+              onDragOver={(e) => handleDragOver(e, 'profileImage')}
+              onDragLeave={(e) => handleDragLeave(e, 'profileImage')}
+              onDrop={(e) => handleDrop(e, 'profileImage')}
+              className={`group cursor-pointer border-2 border-dashed rounded-xl p-4 text-center transition-all duration-200 ${
+                dragOverProfile 
+                  ? 'border-primary bg-primary/10 scale-105' 
+                  : 'border-border hover:border-primary hover:bg-accent/50'
+              }`}
             >
               <input
                 ref={profileInputRef}
@@ -74,14 +121,20 @@ const SignatureForm = ({ data, onChange }: SignatureFormProps) => {
               {data.profileImage ? (
                 <div className="relative">
                   <img src={data.profileImage} alt="Profile" className="w-16 h-16 rounded-full mx-auto object-cover" />
-                  <span className="text-xs text-muted-foreground mt-2 block">לחץ להחלפה</span>
+                  <span className="text-xs text-muted-foreground mt-2 block">
+                    {dragOverProfile ? 'שחרר להחלפה' : 'לחץ או גרור להחלפה'}
+                  </span>
                 </div>
               ) : (
                 <>
-                  <div className="w-12 h-12 rounded-full bg-accent mx-auto flex items-center justify-center group-hover:bg-primary/10 transition-colors">
-                    <Upload className="w-5 h-5 text-muted-foreground group-hover:text-primary" />
+                  <div className={`w-12 h-12 rounded-full mx-auto flex items-center justify-center transition-colors ${
+                    dragOverProfile ? 'bg-primary/20' : 'bg-accent group-hover:bg-primary/10'
+                  }`}>
+                    <Upload className={`w-5 h-5 ${dragOverProfile ? 'text-primary' : 'text-muted-foreground group-hover:text-primary'}`} />
                   </div>
-                  <span className="text-xs text-muted-foreground mt-2 block">תמונת פרופיל</span>
+                  <span className="text-xs text-muted-foreground mt-2 block">
+                    {dragOverProfile ? 'שחרר כאן' : 'תמונת פרופיל'}
+                  </span>
                 </>
               )}
             </div>
@@ -104,7 +157,14 @@ const SignatureForm = ({ data, onChange }: SignatureFormProps) => {
           <div className="relative">
             <div 
               onClick={() => logoInputRef.current?.click()}
-              className="group cursor-pointer border-2 border-dashed border-border rounded-xl p-4 text-center hover:border-primary hover:bg-accent/50 transition-all duration-200"
+              onDragOver={(e) => handleDragOver(e, 'companyLogo')}
+              onDragLeave={(e) => handleDragLeave(e, 'companyLogo')}
+              onDrop={(e) => handleDrop(e, 'companyLogo')}
+              className={`group cursor-pointer border-2 border-dashed rounded-xl p-4 text-center transition-all duration-200 ${
+                dragOverLogo 
+                  ? 'border-primary bg-primary/10 scale-105' 
+                  : 'border-border hover:border-primary hover:bg-accent/50'
+              }`}
             >
               <input
                 ref={logoInputRef}
@@ -116,14 +176,20 @@ const SignatureForm = ({ data, onChange }: SignatureFormProps) => {
               {data.companyLogo ? (
                 <div className="relative">
                   <img src={data.companyLogo} alt="Logo" className="w-16 h-16 mx-auto object-contain" />
-                  <span className="text-xs text-muted-foreground mt-2 block">לחץ להחלפה</span>
+                  <span className="text-xs text-muted-foreground mt-2 block">
+                    {dragOverLogo ? 'שחרר להחלפה' : 'לחץ או גרור להחלפה'}
+                  </span>
                 </div>
               ) : (
                 <>
-                  <div className="w-12 h-12 rounded-lg bg-accent mx-auto flex items-center justify-center group-hover:bg-primary/10 transition-colors">
-                    <Building2 className="w-5 h-5 text-muted-foreground group-hover:text-primary" />
+                  <div className={`w-12 h-12 rounded-lg mx-auto flex items-center justify-center transition-colors ${
+                    dragOverLogo ? 'bg-primary/20' : 'bg-accent group-hover:bg-primary/10'
+                  }`}>
+                    <Building2 className={`w-5 h-5 ${dragOverLogo ? 'text-primary' : 'text-muted-foreground group-hover:text-primary'}`} />
                   </div>
-                  <span className="text-xs text-muted-foreground mt-2 block">לוגו חברה</span>
+                  <span className="text-xs text-muted-foreground mt-2 block">
+                    {dragOverLogo ? 'שחרר כאן' : 'לוגו חברה'}
+                  </span>
                 </>
               )}
             </div>
