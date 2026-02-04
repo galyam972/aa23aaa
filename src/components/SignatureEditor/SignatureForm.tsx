@@ -2,6 +2,7 @@ import { SignatureData } from '@/types/signature';
 import { User, Briefcase, Building2, Mail, Phone, Globe, Upload, ChevronDown, ChevronUp, X } from 'lucide-react';
 import { useRef, useState } from 'react';
 import { SOCIAL_NETWORKS, SocialNetworkKey } from '@/lib/socialNetworks';
+import { formatSocialDisplay } from '@/lib/formatSocialDisplay';
 
 interface SignatureFormProps {
   data: SignatureData;
@@ -171,20 +172,31 @@ const SignatureForm = ({ data, onChange }: SignatureFormProps) => {
         <div className="space-y-2">
           {visibleSocials.map((social) => {
             const IconComponent = social.icon;
+            const currentValue = data[social.key as SocialNetworkKey] || '';
+            const displayValue = formatSocialDisplay(social.key, currentValue);
+            
             return (
-              <div key={social.key} className="relative">
-                <div className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground flex items-center justify-center">
-                  <IconComponent size={16} />
+              <div 
+                key={social.key} 
+                className="flex items-center gap-2 min-h-[48px] px-3 py-2 rounded-xl border border-input bg-background transition-all duration-200 focus-within:ring-2 focus-within:ring-primary/20 focus-within:border-primary"
+              >
+                {/* Icon - Fixed width, always centered */}
+                <div className="flex-shrink-0 w-5 h-5 flex items-center justify-center text-muted-foreground">
+                  <IconComponent size={18} />
                 </div>
+                
+                {/* Input - Flexible, with proper overflow handling */}
                 <input
                   type="text"
-                  value={data[social.key as SocialNetworkKey] || ''}
+                  value={currentValue}
                   onChange={(e) => handleChange(social.key as keyof SignatureData, e.target.value)}
                   placeholder={social.placeholder}
                   dir="ltr"
-                  className="input-styled pr-10"
+                  className="flex-1 min-w-0 bg-transparent border-none outline-none text-foreground placeholder:text-muted-foreground text-sm overflow-hidden text-ellipsis whitespace-nowrap"
                 />
-                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">
+                
+                {/* Label - Fixed width on left side */}
+                <span className="flex-shrink-0 text-xs text-muted-foreground px-2 py-1 bg-secondary/50 rounded-md">
                   {social.labelHe}
                 </span>
               </div>
