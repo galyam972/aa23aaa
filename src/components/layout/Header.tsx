@@ -1,5 +1,5 @@
 import { Link, useNavigate } from 'react-router-dom';
-import { Mail, ArrowLeft, LogOut, User, Settings } from 'lucide-react';
+import { Mail, ArrowLeft, LogOut, User, Settings, Menu, X, ChevronDown } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/hooks/useAuth';
 import {
@@ -10,10 +10,20 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { useState } from 'react';
+
+const navLinks = [
+  { label: 'עורך חתימות', href: '/editor' },
+  { label: 'מדריכים', href: '/guides/how-to-create-signature' },
+  { label: 'תבניות', href: '/templates/business-signature' },
+  { label: 'אודות', href: '/about/how-it-works' },
+  { label: 'צור קשר', href: '/about/contact' },
+];
 
 const Header = () => {
   const { user, signOut } = useAuth();
   const navigate = useNavigate();
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   const handleSignOut = async () => {
     await signOut();
@@ -46,7 +56,30 @@ const Header = () => {
             </div>
           </Link>
 
+          {/* Desktop Navigation */}
+          <nav className="hidden md:flex items-center gap-1">
+            {navLinks.map((link) => (
+              <Link
+                key={link.href}
+                to={link.href}
+                className="px-3 py-2 text-sm text-muted-foreground hover:text-foreground transition-colors rounded-md hover:bg-secondary/50"
+              >
+                {link.label}
+              </Link>
+            ))}
+          </nav>
+
           <div className="flex items-center gap-3">
+            {/* Mobile Menu Button */}
+            <Button
+              variant="ghost"
+              size="icon"
+              className="md:hidden"
+              onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+            >
+              {mobileMenuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
+            </Button>
+
             {user ? (
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
@@ -96,7 +129,7 @@ const Header = () => {
                   </Button>
                 </Link>
                 <Link to="/editor">
-                  <Button variant="outline" className="gap-2">
+                  <Button variant="outline" className="gap-2 hidden md:flex">
                     <ArrowLeft className="w-4 h-4" />
                     נסה עכשיו
                   </Button>
@@ -105,6 +138,36 @@ const Header = () => {
             )}
           </div>
         </div>
+
+        {/* Mobile Navigation */}
+        {mobileMenuOpen && (
+          <nav className="md:hidden border-t mt-4 pt-4 pb-2">
+            <div className="flex flex-col gap-1">
+              {navLinks.map((link) => (
+                <Link
+                  key={link.href}
+                  to={link.href}
+                  className="px-3 py-2 text-sm text-muted-foreground hover:text-foreground transition-colors rounded-md hover:bg-secondary/50"
+                  onClick={() => setMobileMenuOpen(false)}
+                >
+                  {link.label}
+                </Link>
+              ))}
+              {!user && (
+                <Link
+                  to="/editor"
+                  className="mt-2"
+                  onClick={() => setMobileMenuOpen(false)}
+                >
+                  <Button variant="outline" className="w-full gap-2">
+                    <ArrowLeft className="w-4 h-4" />
+                    נסה עכשיו
+                  </Button>
+                </Link>
+              )}
+            </div>
+          </nav>
+        )}
       </div>
     </header>
   );

@@ -1,7 +1,75 @@
 import ContentPage from '@/components/ContentPage';
-import { Mail, Phone, MapPin } from 'lucide-react';
+import { useState } from 'react';
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { z } from 'zod';
+import { Mail, Phone, Send, Loader2 } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
+import { useToast } from '@/hooks/use-toast';
+import {
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from '@/components/ui/form';
+
+const contactSchema = z.object({
+  name: z.string().trim().min(2, 'שם חייב להכיל לפחות 2 תווים').max(100, 'שם ארוך מדי'),
+  email: z.string().trim().email('כתובת אימייל לא תקינה').max(255, 'אימייל ארוך מדי'),
+  subject: z.string().trim().min(3, 'נושא חייב להכיל לפחות 3 תווים').max(200, 'נושא ארוך מדי'),
+  message: z.string().trim().min(10, 'הודעה חייבת להכיל לפחות 10 תווים').max(2000, 'הודעה ארוכה מדי'),
+});
+
+type ContactFormData = z.infer<typeof contactSchema>;
 
 export default function Contact() {
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const { toast } = useToast();
+  
+  const form = useForm<ContactFormData>({
+    resolver: zodResolver(contactSchema),
+    defaultValues: {
+      name: '',
+      email: '',
+      subject: '',
+      message: '',
+    },
+  });
+
+  const onSubmit = async (data: ContactFormData) => {
+    setIsSubmitting(true);
+    try {
+      // Create mailto link with form data
+      const mailtoSubject = encodeURIComponent(`[SignaturePro] ${data.subject}`);
+      const mailtoBody = encodeURIComponent(
+        `שם: ${data.name}\nאימייל: ${data.email}\n\n${data.message}`
+      );
+      const mailtoLink = `mailto:naor@galyam-studio.co.il?subject=${mailtoSubject}&body=${mailtoBody}`;
+      
+      // Open mail client
+      window.location.href = mailtoLink;
+      
+      toast({
+        title: 'תודה על פנייתך!',
+        description: 'תוכנת המייל שלך נפתחה. שלח את ההודעה ונחזור אליך בהקדם.',
+      });
+      
+      form.reset();
+    } catch (error) {
+      toast({
+        title: 'שגיאה בשליחה',
+        description: 'אנא נסה שנית או פנה אלינו ישירות במייל',
+        variant: 'destructive',
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
   return (
     <ContentPage
       title="צור קשר"
@@ -44,6 +112,86 @@ export default function Contact() {
               </div>
             </div>
           </div>
+        </div>
+
+        {/* Contact Form */}
+        <div className="mt-8 p-6 bg-secondary/30 rounded-xl">
+          <h2 className="text-2xl font-bold mb-6">שלחו לנו הודעה</h2>
+          <Form {...form}>
+            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+              <div className="grid md:grid-cols-2 gap-4">
+                <FormField
+                  control={form.control}
+                  name="name"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>שם מלא</FormLabel>
+                      <FormControl>
+                        <Input placeholder="הכנס את שמך" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="email"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>אימייל</FormLabel>
+                      <FormControl>
+                        <Input type="email" placeholder="your@email.com" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
+              <FormField
+                control={form.control}
+                name="subject"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>נושא</FormLabel>
+                    <FormControl>
+                      <Input placeholder="במה נוכל לעזור?" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="message"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>הודעה</FormLabel>
+                    <FormControl>
+                      <Textarea 
+                        placeholder="כתבו את הודעתכם כאן..." 
+                        className="min-h-[120px]"
+                        {...field} 
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <Button type="submit" disabled={isSubmitting} className="w-full md:w-auto">
+                {isSubmitting ? (
+                  <>
+                    <Loader2 className="w-4 h-4 ml-2 animate-spin" />
+                    שולח...
+                  </>
+                ) : (
+                  <>
+                    <Send className="w-4 h-4 ml-2" />
+                    שלח הודעה
+                  </>
+                )}
+              </Button>
+            </form>
+          </Form>
         </div>
 
         <h2 className="text-2xl font-bold mt-8">שעות פעילות</h2>
