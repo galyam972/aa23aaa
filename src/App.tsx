@@ -12,6 +12,7 @@ import ResetPassword from "./pages/ResetPassword";
 import NotFound from "./pages/NotFound";
 import PaymentSuccess from "./pages/PaymentSuccess";
 import PaymentCancel from "./pages/PaymentCancel";
+import Settings from "./pages/Settings";
 
 // Guide pages
 import HowToCreateSignature from "./pages/guides/HowToCreateSignature";
@@ -51,6 +52,7 @@ const App = () => (
               <Route path="/editor" element={<Index />} />
               <Route path="/payment-success" element={<PaymentSuccess />} />
               <Route path="/payment-cancel" element={<PaymentCancel />} />
+              <Route path="/settings" element={<Settings />} />
               
               {/* Guide pages */}
               <Route path="/guides/how-to-create-signature" element={<HowToCreateSignature />} />
