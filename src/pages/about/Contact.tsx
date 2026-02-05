@@ -24,8 +24,8 @@ export default function Contact() {
               </div>
               <div>
                 <h3 className="font-bold">אימייל</h3>
-                <a href="mailto:support@signaturepro.co.il" className="text-primary hover:underline">
-                  support@signaturepro.co.il
+                <a href="mailto:naor@galyam-studio.co.il" className="text-primary hover:underline">
+                  naor@galyam-studio.co.il
                 </a>
               </div>
             </div>
@@ -52,7 +52,6 @@ export default function Contact() {
         </p>
         <ul className="list-disc list-inside space-y-2 mr-4">
           <li>ימים א'-ה': 09:00-18:00</li>
-          <li>יום ו': 09:00-13:00</li>
           <li>שבת: סגור</li>
         </ul>
         <p className="text-muted-foreground text-sm mt-2">
@@ -72,8 +71,8 @@ export default function Contact() {
         <p>
           מעוניינים בשיתוף פעולה? פתרון לארגון גדול? או הצעה עסקית? 
           נשמח לשמוע! פנו אלינו לאימייל:{' '}
-          <a href="mailto:business@signaturepro.co.il" className="text-primary hover:underline">
-            business@signaturepro.co.il
+          <a href="mailto:naor@galyam-studio.co.il" className="text-primary hover:underline">
+            naor@galyam-studio.co.il
           </a>
         </p>
       </section>
