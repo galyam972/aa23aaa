@@ -169,8 +169,8 @@
              לשאלות או הבהרות בנוגע לתנאי שימוש אלה, ניתן ליצור קשר:
            </p>
            <ul className="list-none space-y-2">
-             <li><strong>דוא"ל:</strong> support@signaturepro.co.il</li>
-             <li><strong>אתר:</strong> www.signaturepro.co.il</li>
+            <li><strong>דוא"ל:</strong> naor@galyam-studio.co.il</li>
+            <li><strong>אתר:</strong> www.galyam-studio.co.il</li>
            </ul>
          </section>
  

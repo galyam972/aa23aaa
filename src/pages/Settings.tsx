@@ -11,10 +11,20 @@
  import { Input } from '@/components/ui/input';
  import { Label } from '@/components/ui/label';
  import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
- import { Separator } from '@/components/ui/separator';
- import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
- import { useToast } from '@/hooks/use-toast';
- import { User, Lock, Mail, Shield } from 'lucide-react';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from '@/components/ui/alert-dialog';
+import { useToast } from '@/hooks/use-toast';
+import { User, Lock, Mail, Shield, Trash2, AlertTriangle } from 'lucide-react';
  import {
    Form,
    FormControl,
@@ -46,6 +56,8 @@
    const { toast } = useToast();
    const [isUpdatingProfile, setIsUpdatingProfile] = useState(false);
    const [isUpdatingPassword, setIsUpdatingPassword] = useState(false);
+  const [isDeletingAccount, setIsDeletingAccount] = useState(false);
+  const [deleteConfirmation, setDeleteConfirmation] = useState('');
  
    const profileForm = useForm<ProfileFormData>({
      resolver: zodResolver(profileSchema),
@@ -310,6 +322,101 @@
                </CardContent>
              </Card>
            )}
+
+            {/* Delete Account Section */}
+            <Card className="border-destructive/50">
+              <CardHeader>
+                <div className="flex items-center gap-3">
+                  <Trash2 className="w-5 h-5 text-destructive" />
+                  <div>
+                    <CardTitle className="text-destructive">מחיקת חשבון</CardTitle>
+                    <CardDescription>פעולה זו אינה ניתנת לביטול</CardDescription>
+                  </div>
+                </div>
+              </CardHeader>
+              <CardContent>
+                <p className="text-sm text-muted-foreground mb-4">
+                  מחיקת החשבון תסיר לצמיתות את כל הנתונים שלך, כולל חתימות שמורות ופרטי פרופיל.
+                  פעולה זו אינה ניתנת לשחזור.
+                </p>
+                <AlertDialog>
+                  <AlertDialogTrigger asChild>
+                    <Button variant="destructive">
+                      <Trash2 className="w-4 h-4 ml-2" />
+                      מחק חשבון
+                    </Button>
+                  </AlertDialogTrigger>
+                  <AlertDialogContent>
+                    <AlertDialogHeader>
+                      <AlertDialogTitle className="flex items-center gap-2">
+                        <AlertTriangle className="w-5 h-5 text-destructive" />
+                        אישור מחיקת חשבון
+                      </AlertDialogTitle>
+                      <AlertDialogDescription asChild>
+                        <div className="text-right">
+                          <p className="mb-4">
+                            האם אתה בטוח שברצונך למחוק את החשבון שלך? פעולה זו תמחק:
+                          </p>
+                          <ul className="list-disc list-inside space-y-1 mb-4 mr-4">
+                            <li>כל החתימות השמורות שלך</li>
+                            <li>פרטי הפרופיל שלך</li>
+                            <li>היסטוריית השימוש שלך</li>
+                          </ul>
+                          <p className="font-medium mb-2">
+                            להמשך, הקלד "מחק את החשבון":
+                          </p>
+                          <Input
+                            value={deleteConfirmation}
+                            onChange={(e) => setDeleteConfirmation(e.target.value)}
+                            placeholder='הקלד "מחק את החשבון"'
+                            className="mt-2"
+                          />
+                        </div>
+                      </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter className="flex-row-reverse gap-2">
+                      <AlertDialogCancel onClick={() => setDeleteConfirmation('')}>ביטול</AlertDialogCancel>
+                      <AlertDialogAction
+                        onClick={async () => {
+                          if (deleteConfirmation !== 'מחק את החשבון') {
+                            toast({
+                              title: 'אישור לא תקין',
+                              description: 'יש להקליד "מחק את החשבון" לאישור',
+                              variant: 'destructive',
+                            });
+                            return;
+                          }
+                          setIsDeletingAccount(true);
+                          try {
+                            await supabase.from('profiles').delete().eq('user_id', user!.id);
+                            await supabase.from('user_signatures').delete().eq('user_id', user!.id);
+                            await supabase.auth.signOut();
+                            toast({
+                              title: 'החשבון נמחק',
+                              description: 'כל הנתונים שלך נמחקו בהצלחה',
+                            });
+                            navigate('/');
+                          } catch (error: any) {
+                            toast({
+                              title: 'שגיאה במחיקת החשבון',
+                              description: error.message || 'אנא נסה שנית',
+                              variant: 'destructive',
+                            });
+                          } finally {
+                            setIsDeletingAccount(false);
+                            setDeleteConfirmation('');
+                          }
+                        }}
+                        disabled={deleteConfirmation !== 'מחק את החשבון' || isDeletingAccount}
+                        className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                      >
+                        {isDeletingAccount ? 'מוחק...' : 'מחק לצמיתות'}
+                      </AlertDialogAction>
+                    </AlertDialogFooter>
+                  </AlertDialogContent>
+                </AlertDialog>
+              </CardContent>
+            </Card>
          </div>
        </div>
      </Layout>

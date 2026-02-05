@@ -149,9 +149,8 @@
              לשאלות, בקשות או תלונות בנוגע למדיניות פרטיות זו או לטיפול במידע שלך:
            </p>
            <ul className="list-none space-y-2">
-             <li><strong>דוא"ל:</strong> privacy@signaturepro.co.il</li>
-             <li><strong>דוא"ל תמיכה:</strong> support@signaturepro.co.il</li>
-             <li><strong>אתר:</strong> www.signaturepro.co.il</li>
+            <li><strong>דוא"ל:</strong> naor@galyam-studio.co.il</li>
+            <li><strong>אתר:</strong> www.galyam-studio.co.il</li>
            </ul>
            <p className="mt-4 text-muted-foreground">
              אנו מתחייבים לטפל בכל פנייה תוך 30 ימים.
