@@ -1,5 +1,5 @@
 import { Link, useNavigate } from 'react-router-dom';
-import { Mail, ArrowLeft, LogOut, User } from 'lucide-react';
+import { Mail, ArrowLeft, LogOut, User, Settings } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/hooks/useAuth';
 import {
@@ -73,6 +73,12 @@ const Header = () => {
                     <Link to="/editor" className="flex items-center gap-2">
                       <User className="w-4 h-4" />
                       עורך החתימות
+                    </Link>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem asChild className="cursor-pointer">
+                    <Link to="/settings" className="flex items-center gap-2">
+                      <Settings className="w-4 h-4" />
+                      הגדרות חשבון
                     </Link>
                   </DropdownMenuItem>
                   <DropdownMenuSeparator />
