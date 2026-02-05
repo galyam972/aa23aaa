@@ -35,6 +35,10 @@ import Benefits from "./pages/about/Benefits";
 import Privacy from "./pages/about/Privacy";
 import Contact from "./pages/about/Contact";
 
+// Legal pages
+import TermsOfService from "./pages/legal/TermsOfService";
+import PrivacyPolicy from "./pages/legal/PrivacyPolicy";
+
 const queryClient = new QueryClient();
 
 const App = () => (
@@ -74,6 +78,10 @@ const App = () => (
               <Route path="/about/benefits" element={<Benefits />} />
               <Route path="/about/privacy" element={<Privacy />} />
               <Route path="/about/contact" element={<Contact />} />
+              
+              {/* Legal pages */}
+              <Route path="/legal/terms" element={<TermsOfService />} />
+              <Route path="/legal/privacy" element={<PrivacyPolicy />} />
               
               <Route path="*" element={<NotFound />} />
             </Routes>
