@@ -13,6 +13,7 @@ import NotFound from "./pages/NotFound";
 import PaymentSuccess from "./pages/PaymentSuccess";
 import PaymentCancel from "./pages/PaymentCancel";
 import Settings from "./pages/Settings";
+import Embed from "./pages/Embed";
 
 // Guide pages
 import HowToCreateSignature from "./pages/guides/HowToCreateSignature";
@@ -49,11 +50,12 @@ const App = () => (
           <Toaster />
           <Sonner />
           <BrowserRouter>
-            <Routes>
+          <Routes>
               <Route path="/" element={<Landing />} />
               <Route path="/auth" element={<Auth />} />
               <Route path="/reset-password" element={<ResetPassword />} />
               <Route path="/editor" element={<Index />} />
+              <Route path="/embed" element={<Embed />} />
               <Route path="/payment-success" element={<PaymentSuccess />} />
               <Route path="/payment-cancel" element={<PaymentCancel />} />
               <Route path="/settings" element={<Settings />} />
