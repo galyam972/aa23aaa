@@ -32,35 +32,7 @@ const Embed = () => {
 
   return (
     <div className="min-h-screen bg-white" dir="rtl">
-      <div className="container mx-auto px-4 py-6">
-        {/* Branding header */}
-        <div className="text-center mb-6">
-          <h1 className="text-2xl font-bold bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent">
-            מחולל חתימות מייל
-          </h1>
-          <p className="text-muted-foreground text-sm mt-1">
-            צור חתימה מקצועית בקלות
-          </p>
-        </div>
-
-        {/* Editor */}
-        <SignatureEditor />
-
-        {/* Footer credit */}
-        <div className="text-center mt-6 pt-4 border-t border-border">
-          <p className="text-xs text-muted-foreground">
-            מופעל על ידי{' '}
-            <a 
-              href="https://aa23aaa.lovable.app" 
-              target="_blank" 
-              rel="noopener noreferrer"
-              className="text-primary hover:underline"
-            >
-              GalyamStudio
-            </a>
-          </p>
-        </div>
-      </div>
+      <SignatureEditor />
     </div>
   );
 };
