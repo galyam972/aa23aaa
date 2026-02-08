@@ -31,7 +31,7 @@ const Embed = () => {
   }, []);
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-background via-background to-muted/20" dir="rtl">
+    <div className="min-h-screen bg-white" dir="rtl">
       <div className="container mx-auto px-4 py-6">
         {/* Branding header */}
         <div className="text-center mb-6">
