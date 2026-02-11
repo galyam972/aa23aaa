@@ -7,7 +7,6 @@ const corsHeaders = {
 };
 
 serve(async (req) => {
-  // Handle CORS preflight
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders });
   }
@@ -15,53 +14,65 @@ serve(async (req) => {
   try {
     const SUPABASE_URL = Deno.env.get('SUPABASE_URL');
     const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
+    const SUPABASE_ANON_KEY = Deno.env.get('SUPABASE_ANON_KEY');
 
-    if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) {
+    if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY || !SUPABASE_ANON_KEY) {
       throw new Error('Supabase credentials not configured');
+    }
+
+    // Authenticate the request
+    const authHeader = req.headers.get('Authorization');
+    if (!authHeader?.startsWith('Bearer ')) {
+      return new Response(
+        JSON.stringify({ success: false, error: 'Unauthorized' }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 401 }
+      );
+    }
+
+    const token = authHeader.replace('Bearer ', '');
+    const anonClient = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+      global: { headers: { Authorization: authHeader } }
+    });
+    const { data: claimsData, error: claimsError } = await anonClient.auth.getClaims(token);
+    if (claimsError || !claimsData?.claims) {
+      return new Response(
+        JSON.stringify({ success: false, error: 'Invalid token' }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 401 }
+      );
+    }
+
+    // Use email from JWT claims, not from request body
+    const email = claimsData.claims.email as string;
+    if (!email) {
+      return new Response(
+        JSON.stringify({ success: false, error: 'No email in token' }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 400 }
+      );
     }
 
     const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 
-    const { email } = await req.json();
-
-    if (!email) {
-      throw new Error('Missing required field: email');
-    }
-
-    // Get all active signature allocations for the email
-    const { data: signatures, error } = await supabase
-      .from('user_signatures')
+    // Get all active signature allocations for the authenticated user's email
+    const { data: subscription, error } = await supabase
+      .from('user_subscriptions')
       .select('*')
       .eq('email', email)
-      .eq('is_active', true)
-      .gte('expires_at', new Date().toISOString())
-      .order('expires_at', { ascending: false });
+      .maybeSingle();
 
     if (error) {
-      console.error('Signatures fetch error:', error);
-      throw new Error('Failed to fetch signatures');
+      console.error('Subscription fetch error:', error);
+      throw new Error('Failed to fetch subscription');
     }
 
-    // Calculate totals
-    let totalMaxSignatures = 0;
-    let totalUsedSignatures = 0;
-
-    for (const sig of signatures || []) {
-      totalMaxSignatures += sig.max_signatures;
-      totalUsedSignatures += sig.used_signatures;
-    }
-
-    const remainingSignatures = totalMaxSignatures - totalUsedSignatures;
-    const hasActiveSubscription = signatures && signatures.length > 0;
+    const hasActiveSubscription = !!subscription && subscription.signature_credits > 0;
 
     return new Response(
       JSON.stringify({
         success: true,
-        has_access: hasActiveSubscription && remainingSignatures > 0,
-        total_signatures: totalMaxSignatures,
-        used_signatures: totalUsedSignatures,
-        remaining_signatures: remainingSignatures,
-        allocations: signatures || [],
+        has_access: hasActiveSubscription,
+        total_signatures: subscription?.signature_credits ?? 0,
+        used_signatures: 0,
+        remaining_signatures: subscription?.signature_credits ?? 0,
       }),
       {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },

@@ -7,7 +7,6 @@ const corsHeaders = {
 };
 
 serve(async (req) => {
-  // Handle CORS preflight
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders });
   }
@@ -15,43 +14,53 @@ serve(async (req) => {
   try {
     const SUPABASE_URL = Deno.env.get('SUPABASE_URL');
     const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
+    const SUPABASE_ANON_KEY = Deno.env.get('SUPABASE_ANON_KEY');
 
-    if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) {
+    if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY || !SUPABASE_ANON_KEY) {
       throw new Error('Supabase credentials not configured');
+    }
+
+    // Authenticate the request
+    const authHeader = req.headers.get('Authorization');
+    if (!authHeader?.startsWith('Bearer ')) {
+      return new Response(
+        JSON.stringify({ success: false, error: 'Unauthorized' }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 401 }
+      );
+    }
+
+    const token = authHeader.replace('Bearer ', '');
+    const anonClient = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+      global: { headers: { Authorization: authHeader } }
+    });
+    const { data: claimsData, error: claimsError } = await anonClient.auth.getClaims(token);
+    if (claimsError || !claimsData?.claims) {
+      return new Response(
+        JSON.stringify({ success: false, error: 'Invalid token' }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 401 }
+      );
+    }
+
+    const userId = claimsData.claims.sub as string;
+    if (!userId) {
+      return new Response(
+        JSON.stringify({ success: false, error: 'Invalid token claims' }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 401 }
+      );
     }
 
     const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 
-    const { email } = await req.json();
+    // Use the atomic decrement function with authenticated user_id
+    const { data: decremented, error: rpcError } = await supabase
+      .rpc('decrement_signature_credit', { p_user_id: userId });
 
-    if (!email) {
-      throw new Error('Missing required field: email');
+    if (rpcError) {
+      console.error('Decrement error:', rpcError);
+      throw new Error('Failed to use signature');
     }
 
-    // Get the first active allocation with remaining signatures
-    const { data: signatures, error: fetchError } = await supabase
-      .from('user_signatures')
-      .select('*')
-      .eq('email', email)
-      .eq('is_active', true)
-      .gte('expires_at', new Date().toISOString())
-      .order('expires_at', { ascending: true });
-
-    if (fetchError) {
-      console.error('Signatures fetch error:', fetchError);
-      throw new Error('Failed to fetch signatures');
-    }
-
-    // Find an allocation with remaining signatures
-    let allocationToUse = null;
-    for (const sig of signatures || []) {
-      if (sig.used_signatures < sig.max_signatures) {
-        allocationToUse = sig;
-        break;
-      }
-    }
-
-    if (!allocationToUse) {
+    if (!decremented) {
       return new Response(
         JSON.stringify({
           success: false,
@@ -65,23 +74,9 @@ serve(async (req) => {
       );
     }
 
-    // Increment used signatures
-    const { error: updateError } = await supabase
-      .from('user_signatures')
-      .update({ used_signatures: allocationToUse.used_signatures + 1 })
-      .eq('id', allocationToUse.id);
-
-    if (updateError) {
-      console.error('Update error:', updateError);
-      throw new Error('Failed to use signature');
-    }
-
-    const remainingAfterUse = allocationToUse.max_signatures - allocationToUse.used_signatures - 1;
-
     return new Response(
       JSON.stringify({
         success: true,
-        remaining_signatures: remainingAfterUse,
         message: 'Signature used successfully',
       }),
       {

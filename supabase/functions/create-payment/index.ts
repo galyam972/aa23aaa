@@ -6,22 +6,10 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-// Morning API base URL
 const MORNING_API_URL = 'https://api.greeninvoice.co.il/api/v1';
 
-// Pricing configuration
-const PRICING = {
-  plans: {
-    1: { signatures: 1, price: 39 },
-    2: { signatures: 2, price: 69 },
-    3: { signatures: 3, price: 99 },
-  },
-  extraSignaturePrice: 19,
-  minSignaturesForExtras: 3,
-};
-
 function calculatePrice(quantity: number): { basePlan: number; extraSignatures: number; totalAmount: number } {
-  if (quantity <= 0) throw new Error('Invalid quantity');
+  if (quantity <= 0 || !Number.isInteger(quantity) || quantity > 100) throw new Error('Invalid quantity');
   
   if (quantity === 1) return { basePlan: 1, extraSignatures: 0, totalAmount: 39 };
   if (quantity === 2) return { basePlan: 2, extraSignatures: 0, totalAmount: 69 };
@@ -35,7 +23,6 @@ function calculatePrice(quantity: number): { basePlan: number; extraSignatures: 
 }
 
 serve(async (req) => {
-  // Handle CORS preflight
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders });
   }
@@ -45,27 +32,55 @@ serve(async (req) => {
     const MORNING_API_SECRET = Deno.env.get('MORNING_API_SECRET');
     const SUPABASE_URL = Deno.env.get('SUPABASE_URL');
     const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
+    const SUPABASE_ANON_KEY = Deno.env.get('SUPABASE_ANON_KEY');
 
     if (!MORNING_API_KEY || !MORNING_API_SECRET) {
       throw new Error('Morning API credentials not configured');
     }
-
-    if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) {
+    if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY || !SUPABASE_ANON_KEY) {
       throw new Error('Supabase credentials not configured');
+    }
+
+    // Authenticate the request
+    const authHeader = req.headers.get('Authorization');
+    if (!authHeader?.startsWith('Bearer ')) {
+      return new Response(
+        JSON.stringify({ success: false, error: 'Unauthorized' }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 401 }
+      );
+    }
+
+    const token = authHeader.replace('Bearer ', '');
+    const anonClient = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+      global: { headers: { Authorization: authHeader } }
+    });
+    const { data: claimsData, error: claimsError } = await anonClient.auth.getClaims(token);
+    if (claimsError || !claimsData?.claims) {
+      return new Response(
+        JSON.stringify({ success: false, error: 'Invalid token' }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 401 }
+      );
+    }
+
+    // Use email from JWT claims
+    const email = claimsData.claims.email as string;
+    if (!email) {
+      return new Response(
+        JSON.stringify({ success: false, error: 'No email in token' }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 400 }
+      );
     }
 
     const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 
-    const { email, signatures_quantity, success_url, cancel_url } = await req.json();
+    const { signatures_quantity, success_url, cancel_url } = await req.json();
 
-    if (!email || !signatures_quantity) {
-      throw new Error('Missing required fields: email, signatures_quantity');
+    if (!signatures_quantity) {
+      throw new Error('Missing required field: signatures_quantity');
     }
 
-    // Calculate pricing
     const { basePlan, extraSignatures, totalAmount } = calculatePrice(signatures_quantity);
 
-    // Create purchase record
     const { data: purchase, error: purchaseError } = await supabase
       .from('purchases')
       .insert({
@@ -86,60 +101,44 @@ serve(async (req) => {
     }
 
     // Get Morning API token
-    console.log('Attempting to get Morning API token...');
     const tokenResponse = await fetch(`${MORNING_API_URL}/account/token`, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        id: MORNING_API_KEY,
-        secret: MORNING_API_SECRET,
-      }),
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id: MORNING_API_KEY, secret: MORNING_API_SECRET }),
     });
 
     if (!tokenResponse.ok) {
       const errorText = await tokenResponse.text();
-      console.error('Morning token error status:', tokenResponse.status);
-      console.error('Morning token error body:', errorText);
       throw new Error(`Morning auth failed: ${tokenResponse.status} - ${errorText}`);
     }
 
     const tokenData = await tokenResponse.json();
     const accessToken = tokenData.token;
-    console.log('Got Morning API token successfully');
 
-    // Create payment form in Morning
     const paymentFormBody = {
       description: `רכישת ${signatures_quantity} חתימות מייל - SignaturePro`,
-      type: 320, // Payment form type for payment page
+      type: 320,
       lang: 'he',
       currency: 'ILS',
-      vatType: 1, // Include VAT
+      vatType: 1,
       amount: totalAmount,
       maxPayments: 1,
       pluginId: purchase.id,
-      client: {
-        emails: [email],
-      },
+      client: { emails: [email] },
       successUrl: success_url || `${req.headers.get('origin')}/payment-success?purchase_id=${purchase.id}`,
       failureUrl: cancel_url || `${req.headers.get('origin')}/payment-cancel?purchase_id=${purchase.id}`,
       notifyUrl: `${SUPABASE_URL}/functions/v1/payment-webhook`,
-      income: [
-        {
-          catalogNum: 'SIG-001',
-          description: signatures_quantity <= 3 
-            ? `מסלול ${basePlan} - ${signatures_quantity} חתימות`
-            : `מסלול 3 + ${extraSignatures} חתימות נוספות`,
-          quantity: 1,
-          price: totalAmount,
-          currency: 'ILS',
-          vatType: 1,
-        },
-      ],
+      income: [{
+        catalogNum: 'SIG-001',
+        description: signatures_quantity <= 3
+          ? `מסלול ${basePlan} - ${signatures_quantity} חתימות`
+          : `מסלול 3 + ${extraSignatures} חתימות נוספות`,
+        quantity: 1,
+        price: totalAmount,
+        currency: 'ILS',
+        vatType: 1,
+      }],
     };
-
-    console.log('Creating payment form with body:', JSON.stringify(paymentFormBody));
 
     const paymentFormResponse = await fetch(`${MORNING_API_URL}/payments/form`, {
       method: 'POST',
@@ -151,16 +150,12 @@ serve(async (req) => {
     });
 
     const responseText = await paymentFormResponse.text();
-    console.log('Payment form response status:', paymentFormResponse.status);
-    console.log('Payment form response body:', responseText);
-
     if (!paymentFormResponse.ok) {
       throw new Error(`Morning payment form failed: ${paymentFormResponse.status} - ${responseText}`);
     }
 
     const paymentFormData = JSON.parse(responseText);
 
-    // Update purchase with Morning transaction ID
     await supabase
       .from('purchases')
       .update({ morning_transaction_id: paymentFormData.id })
@@ -173,10 +168,7 @@ serve(async (req) => {
         purchase_id: purchase.id,
         amount: totalAmount,
       }),
-      {
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        status: 200,
-      }
+      { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
     );
   } catch (error) {
     console.error('Payment creation error:', error);
@@ -185,10 +177,7 @@ serve(async (req) => {
         success: false,
         error: error instanceof Error ? error.message : 'Unknown error',
       }),
-      {
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        status: 400,
-      }
+      { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 400 }
     );
   }
 });
