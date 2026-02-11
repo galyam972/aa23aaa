@@ -6,6 +6,10 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
+function isValidEmail(email: string): boolean {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) && email.length <= 255;
+}
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders });
@@ -43,9 +47,9 @@ serve(async (req) => {
 
     // Use email from JWT claims, not from request body
     const email = claimsData.claims.email as string;
-    if (!email) {
+    if (!email || !isValidEmail(email)) {
       return new Response(
-        JSON.stringify({ success: false, error: 'No email in token' }),
+        JSON.stringify({ success: false, error: 'Invalid email in token' }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 400 }
       );
     }
@@ -84,7 +88,7 @@ serve(async (req) => {
     return new Response(
       JSON.stringify({
         success: false,
-        error: error instanceof Error ? error.message : 'Unknown error',
+        error: 'An error occurred',
         has_access: false,
         remaining_signatures: 0,
       }),

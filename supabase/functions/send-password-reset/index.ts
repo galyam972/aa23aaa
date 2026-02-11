@@ -8,23 +8,42 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
-interface PasswordResetRequest {
-  email: string;
-  resetUrl: string;
+function isValidEmail(email: string): boolean {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) && email.length <= 255;
+}
+
+function isValidResetUrl(url: string): boolean {
+  try {
+    const parsed = new URL(url);
+    // Only allow HTTPS URLs from our known domains
+    const allowedHosts = ['aa23aaa.lovable.app'];
+    return parsed.protocol === 'https:' && (allowedHosts.includes(parsed.hostname) || parsed.hostname.endsWith('.lovable.app'));
+  } catch {
+    return false;
+  }
 }
 
 const handler = async (req: Request): Promise<Response> => {
-  // Handle CORS preflight requests
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
 
   try {
-    const { email, resetUrl }: PasswordResetRequest = await req.json();
+    const { email, resetUrl } = await req.json();
 
     // Validate required fields
-    if (!email || !resetUrl) {
-      throw new Error("Missing required fields: email and resetUrl");
+    if (!email || typeof email !== 'string' || !isValidEmail(email)) {
+      return new Response(
+        JSON.stringify({ error: "Invalid email address" }),
+        { status: 400, headers: { "Content-Type": "application/json", ...corsHeaders } }
+      );
+    }
+
+    if (!resetUrl || typeof resetUrl !== 'string' || !isValidResetUrl(resetUrl)) {
+      return new Response(
+        JSON.stringify({ error: "Invalid reset URL" }),
+        { status: 400, headers: { "Content-Type": "application/json", ...corsHeaders } }
+      );
     }
 
     if (!RESEND_API_KEY) {
@@ -163,24 +182,17 @@ const handler = async (req: Request): Promise<Response> => {
       throw new Error(errorData.message || "Failed to send email");
     }
 
-    const emailResponse = await res.json();
-    console.log("Password reset email sent successfully:", emailResponse);
+    await res.json();
 
-    return new Response(JSON.stringify(emailResponse), {
+    return new Response(JSON.stringify({ success: true }), {
       status: 200,
-      headers: {
-        "Content-Type": "application/json",
-        ...corsHeaders,
-      },
+      headers: { "Content-Type": "application/json", ...corsHeaders },
     });
   } catch (error: any) {
     console.error("Error in send-password-reset function:", error);
     return new Response(
-      JSON.stringify({ error: error.message }),
-      {
-        status: 500,
-        headers: { "Content-Type": "application/json", ...corsHeaders },
-      }
+      JSON.stringify({ error: "Failed to send reset email" }),
+      { status: 500, headers: { "Content-Type": "application/json", ...corsHeaders } }
     );
   }
 };
