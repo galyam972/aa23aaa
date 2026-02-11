@@ -35,7 +35,6 @@ export async function createPayment(email: string, signaturesQuantity: number): 
   try {
     const { data, error } = await supabase.functions.invoke('create-payment', {
       body: {
-        email,
         signatures_quantity: signaturesQuantity,
         success_url: `${window.location.origin}/payment-success`,
         cancel_url: `${window.location.origin}/payment-cancel`,
@@ -66,7 +65,7 @@ export async function checkSignatures(email: string): Promise<{
 }> {
   try {
     const { data, error } = await supabase.functions.invoke('check-signatures', {
-      body: { email },
+      body: {},
     });
 
     if (error || !data.success) {
@@ -87,7 +86,7 @@ export async function checkSignatures(email: string): Promise<{
 export async function useSignature(email: string): Promise<{ success: boolean; remainingSignatures?: number; error?: string }> {
   try {
     const { data, error } = await supabase.functions.invoke('use-signature', {
-      body: { email },
+      body: {},
     });
 
     if (error) {
