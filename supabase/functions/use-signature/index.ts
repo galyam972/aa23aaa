@@ -42,7 +42,7 @@ serve(async (req) => {
     }
 
     const userId = claimsData.claims.sub as string;
-    if (!userId) {
+    if (!userId || typeof userId !== 'string' || userId.length > 36) {
       return new Response(
         JSON.stringify({ success: false, error: 'Invalid token claims' }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 401 }
@@ -89,7 +89,7 @@ serve(async (req) => {
     return new Response(
       JSON.stringify({
         success: false,
-        error: error instanceof Error ? error.message : 'Unknown error',
+        error: 'An error occurred',
       }),
       {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },

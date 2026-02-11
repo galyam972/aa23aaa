@@ -8,6 +8,19 @@ const corsHeaders = {
 
 const MORNING_API_URL = 'https://api.greeninvoice.co.il/api/v1';
 
+function isValidEmail(email: string): boolean {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) && email.length <= 255;
+}
+
+function isValidUrl(url: string, allowedOrigins: string[]): boolean {
+  try {
+    const parsed = new URL(url);
+    return allowedOrigins.some(origin => url.startsWith(origin)) && parsed.protocol === 'https:';
+  } catch {
+    return false;
+  }
+}
+
 function calculatePrice(quantity: number): { basePlan: number; extraSignatures: number; totalAmount: number } {
   if (quantity <= 0 || !Number.isInteger(quantity) || quantity > 100) throw new Error('Invalid quantity');
   
@@ -64,19 +77,43 @@ serve(async (req) => {
 
     // Use email from JWT claims
     const email = claimsData.claims.email as string;
-    if (!email) {
+    if (!email || !isValidEmail(email)) {
       return new Response(
-        JSON.stringify({ success: false, error: 'No email in token' }),
+        JSON.stringify({ success: false, error: 'Invalid email in token' }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 400 }
       );
     }
 
     const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 
-    const { signatures_quantity, success_url, cancel_url } = await req.json();
+    const body = await req.json();
+    const signatures_quantity = body.signatures_quantity;
+    const success_url = body.success_url;
+    const cancel_url = body.cancel_url;
 
-    if (!signatures_quantity) {
-      throw new Error('Missing required field: signatures_quantity');
+    // Validate signatures_quantity
+    if (typeof signatures_quantity !== 'number' || !Number.isInteger(signatures_quantity) || signatures_quantity < 1 || signatures_quantity > 100) {
+      return new Response(
+        JSON.stringify({ success: false, error: 'Invalid signatures_quantity: must be integer 1-100' }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 400 }
+      );
+    }
+
+    // Validate URLs if provided - must match the request origin
+    const origin = req.headers.get('origin') || '';
+    const allowedOrigins = [origin, 'https://aa23aaa.lovable.app'].filter(Boolean);
+
+    if (success_url && typeof success_url === 'string' && !isValidUrl(success_url, allowedOrigins)) {
+      return new Response(
+        JSON.stringify({ success: false, error: 'Invalid success_url' }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 400 }
+      );
+    }
+    if (cancel_url && typeof cancel_url === 'string' && !isValidUrl(cancel_url, allowedOrigins)) {
+      return new Response(
+        JSON.stringify({ success: false, error: 'Invalid cancel_url' }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 400 }
+      );
     }
 
     const { basePlan, extraSignatures, totalAmount } = calculatePrice(signatures_quantity);
@@ -108,8 +145,7 @@ serve(async (req) => {
     });
 
     if (!tokenResponse.ok) {
-      const errorText = await tokenResponse.text();
-      throw new Error(`Morning auth failed: ${tokenResponse.status} - ${errorText}`);
+      throw new Error(`Morning auth failed: ${tokenResponse.status}`);
     }
 
     const tokenData = await tokenResponse.json();
@@ -125,8 +161,8 @@ serve(async (req) => {
       maxPayments: 1,
       pluginId: purchase.id,
       client: { emails: [email] },
-      successUrl: success_url || `${req.headers.get('origin')}/payment-success?purchase_id=${purchase.id}`,
-      failureUrl: cancel_url || `${req.headers.get('origin')}/payment-cancel?purchase_id=${purchase.id}`,
+      successUrl: success_url || `${origin}/payment-success?purchase_id=${purchase.id}`,
+      failureUrl: cancel_url || `${origin}/payment-cancel?purchase_id=${purchase.id}`,
       notifyUrl: `${SUPABASE_URL}/functions/v1/payment-webhook`,
       income: [{
         catalogNum: 'SIG-001',
@@ -151,7 +187,7 @@ serve(async (req) => {
 
     const responseText = await paymentFormResponse.text();
     if (!paymentFormResponse.ok) {
-      throw new Error(`Morning payment form failed: ${paymentFormResponse.status} - ${responseText}`);
+      throw new Error(`Morning payment form failed: ${paymentFormResponse.status}`);
     }
 
     const paymentFormData = JSON.parse(responseText);
@@ -175,7 +211,7 @@ serve(async (req) => {
     return new Response(
       JSON.stringify({
         success: false,
-        error: error instanceof Error ? error.message : 'Unknown error',
+        error: 'An error occurred while processing payment',
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 400 }
     );

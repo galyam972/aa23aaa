@@ -38,20 +38,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           const isNewUser = session.user.created_at && 
             new Date(session.user.created_at).getTime() > Date.now() - 120000; // 2 minutes window
           
-          if (isNewUser && !alreadySentWelcome) {
+        if (isNewUser && !alreadySentWelcome) {
             try {
-              console.log('Sending welcome email for new user:', userEmail);
               await supabase.functions.invoke('send-welcome-email', {
                 body: {
-                  email: userEmail,
                   displayName: session.user.user_metadata?.full_name || session.user.user_metadata?.name,
                 },
               });
-              // Mark that we sent welcome email to this user
               localStorage.setItem(welcomeSentKey, 'true');
-              console.log('Welcome email sent successfully to:', userEmail);
             } catch (emailError) {
-              console.error('Failed to send welcome email:', emailError);
+              // Silent fail - welcome email is non-critical
             }
           }
         }
@@ -99,14 +95,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       try {
         await supabase.functions.invoke('send-welcome-email', {
           body: {
-            email: email,
             displayName: undefined,
           },
         });
         localStorage.setItem(welcomeSentKey, 'true');
-        console.log('Welcome email sent successfully for email signup');
       } catch (emailError) {
-        console.error('Failed to send welcome email:', emailError);
+        // Silent fail - welcome email is non-critical
       }
     }
 

@@ -9,6 +9,16 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
+function isValidEmail(email: string): boolean {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) && email.length <= 255;
+}
+
+function sanitizeDisplayName(name: string | undefined | null): string | null {
+  if (!name || typeof name !== 'string') return null;
+  // Strip HTML tags, limit length
+  return name.replace(/<[^>]*>/g, '').trim().slice(0, 100) || null;
+}
+
 const handler = async (req: Request): Promise<Response> => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -45,15 +55,16 @@ const handler = async (req: Request): Promise<Response> => {
 
     // Use email from JWT claims
     const email = claimsData.claims.email as string;
-    if (!email) {
+    if (!email || !isValidEmail(email)) {
       return new Response(
-        JSON.stringify({ error: "No email in token" }),
+        JSON.stringify({ error: "Invalid email in token" }),
         { status: 400, headers: { "Content-Type": "application/json", ...corsHeaders } }
       );
     }
 
     // Get displayName from request body (optional, not sensitive)
-    const { displayName } = await req.json();
+    const { displayName: rawDisplayName } = await req.json();
+    const displayName = sanitizeDisplayName(rawDisplayName);
 
     if (!RESEND_API_KEY) {
       throw new Error("RESEND_API_KEY is not configured");
@@ -219,16 +230,15 @@ const handler = async (req: Request): Promise<Response> => {
     }
 
     const emailResponse = await res.json();
-    console.log("Welcome email sent successfully:", emailResponse);
 
-    return new Response(JSON.stringify(emailResponse), {
+    return new Response(JSON.stringify({ success: true }), {
       status: 200,
       headers: { "Content-Type": "application/json", ...corsHeaders },
     });
   } catch (error: any) {
     console.error("Error in send-welcome-email function:", error);
     return new Response(
-      JSON.stringify({ error: error.message }),
+      JSON.stringify({ error: "Failed to send email" }),
       { status: 500, headers: { "Content-Type": "application/json", ...corsHeaders } }
     );
   }

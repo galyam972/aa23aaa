@@ -40,7 +40,6 @@ export default function Auth() {
     const { error } = await signInWithGoogle();
     if (error) {
       toast.error('שגיאה בהתחברות עם Google');
-      console.error(error);
     }
     setLoading(false);
   };
@@ -56,7 +55,6 @@ export default function Auth() {
     const { error } = await signInWithEmail(loginEmail, loginPassword);
     if (error) {
       toast.error('שם משתמש או סיסמה שגויים');
-      console.error(error);
     } else {
       toast.success('התחברת בהצלחה!');
       navigate('/editor');
@@ -85,7 +83,6 @@ export default function Auth() {
     const { error } = await signUpWithEmail(signupEmail, signupPassword);
     if (error) {
       toast.error('שגיאה ביצירת החשבון');
-      console.error(error);
     } else {
       toast.success('נרשמת בהצלחה! בדוק את המייל שלך לאימות');
     }
@@ -109,7 +106,6 @@ export default function Auth() {
     
     if (error) {
       toast.error('שגיאה בשליחת קישור לאיפוס סיסמה');
-      console.error(error);
     } else {
       // Send custom email via our edge function
       try {
@@ -120,7 +116,6 @@ export default function Auth() {
           },
         });
       } catch (emailError) {
-        console.error('Failed to send custom reset email:', emailError);
         // The default Supabase email will be sent anyway
       }
       
